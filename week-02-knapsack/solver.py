@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from collections import namedtuple
-Item = namedtuple("Item", ['index', 'value', 'weight'])
+from operator import attrgetter
+Item = namedtuple("Item", ['index', 'value', 'weight', 'density'])
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -19,25 +20,56 @@ def solve_it(input_data):
     for i in range(1, item_count+1):
         line = lines[i]
         parts = line.split()
-        items.append(Item(i-1, int(parts[0]), int(parts[1])))
+        v, w = int(parts[0]), int(parts[1])
+        items.append(Item(i-1, v, w, 1.0 * v / w))
 
-    # a trivial greedy algorithm for filling the knapsack
-    # it takes items in-order until the knapsack is full
-    value = 0
-    weight = 0
-    taken = [0]*len(items)
+    value, taken = greedy(capacity, items)
 
-    for item in items:
-        if weight + item.weight <= capacity:
-            taken[item.index] = 1
-            value += item.value
-            weight += item.weight
-    
     # prepare the solution in the specified output format
     output_data = str(value) + ' ' + str(0) + '\n'
     output_data += ' '.join(map(str, taken))
     return output_data
 
+def dp(cap, items):
+    n = len(items)
+    taken = [0] * n
+    values = [[0 for j in range(cap + 1)] for i in range(n + 1)]
+    for i in range(n + 1):
+        if i > 0:
+            value = items[i - 1].value
+            weight = items[i - 1].weight
+        for j in range(cap + 1):
+            if i == 0 or j == 0:
+                continue
+            elif weight > j:
+                values[i][j] = values[i - 1][j]
+            else:
+                vTake = values[i - 1][j - weight] + value
+                vKeep = values[i - 1][j]
+                values[i][j] = max(vTake, vKeep)
+
+    totalWeight = cap
+    for i in reversed(range(n)):
+        if values[i][totalWeight] == values[i + 1][totalWeight]:
+            continue
+        else:
+            taken[i] = 1
+            totalWeight -= items[i].weight
+
+    return values[-1][-1], taken
+
+def greedy(cap, items):
+    n = len(items)
+    taken = [0] * n
+    filled = 0
+    value = 0
+    for item in sorted(items, key=attrgetter('density')):
+        if filled + item.weight <= cap:
+            taken[item.index] = 1
+            value += item.value
+            filled += item.weight
+
+    return value, taken
 
 if __name__ == '__main__':
     import sys
