@@ -4,6 +4,12 @@
 from collections import namedtuple
 from operator import attrgetter
 from math import log10
+
+import numpy as np
+import cvxopt
+import cvxopt.glpk
+#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+
 Item = namedtuple("Item", ['index', 'value', 'weight', 'density'])
 
 def solve_it(input_data):
@@ -27,17 +33,40 @@ def solve_it(input_data):
     #print("capacity =", capacity)
     #print("items =", len(items))
     #print("log =", log10(capacity * len(items)))
-    if log10(capacity * len(items)) <= 8:
-        #print('dp')
-        value, taken = dp(capacity, items)
-    else:
-        #print('greedy')
-        value, taken = greedy(capacity, items)
+    #if log10(capacity * len(items)) <= 8:
+    #    #print('dp')
+    #    value, taken = dp(capacity, items)
+    #else:
+    #    #print('greedy')
+    #    value, taken = greedy(capacity, items)
+    value, taken = opt(capacity, items)
 
     # prepare the solution in the specified output format
     output_data = str(value) + ' ' + str(0) + '\n' 
     output_data += ' '.join(map(str, taken))
     return output_data
+
+def opt(cap, items):
+    item_count = len(items)
+    values = np.zeros(item_count)
+    weights = np.zeros([1, item_count])
+
+    for i in range(item_count):
+        values[i] = items[i].value
+        weights[0][i] = items[i].weight
+
+    binVars=set()
+    for var in range(item_count):
+        binVars.add(var)
+
+    status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(-values, tc='d'),
+                                   G = cvxopt.matrix(weights, tc='d'),
+                                   h = cvxopt.matrix(cap, tc='d'),
+                                   I = binVars,
+                                   B = binVars)
+    taken = [int(val) for val in isol]
+    value = int(np.dot(values, np.array(taken)))
+    return value, taken
 
 def dp(cap, items):
     n = len(items)
