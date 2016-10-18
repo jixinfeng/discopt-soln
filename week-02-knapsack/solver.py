@@ -8,7 +8,7 @@ from math import log10
 import numpy as np
 import cvxopt
 import cvxopt.glpk
-#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Item = namedtuple("Item", ['index', 'value', 'weight', 'density'])
 
