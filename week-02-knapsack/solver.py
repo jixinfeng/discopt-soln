@@ -33,14 +33,14 @@ def solve_it(input_data):
     if log10(capacity * len(items)) <= 8:
         value, taken = dp(capacity, items)
     else:
-        value, taken = opt(capacity, items)
+        value, taken = mip(capacity, items)
 
     # prepare the solution in the specified output format
     output_data = str(value) + ' ' + str(0) + '\n' 
     output_data += ' '.join(map(str, taken))
     return output_data
 
-def opt(cap, items):
+def mip(cap, items):
     item_count = len(items)
     values = np.zeros(item_count)
     weights = np.zeros([1, item_count])
