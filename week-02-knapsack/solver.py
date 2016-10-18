@@ -30,16 +30,10 @@ def solve_it(input_data):
         v, w = int(parts[0]), int(parts[1])
         items.append(Item(i-1, v, w, 1.0 * v / w))
 
-    #print("capacity =", capacity)
-    #print("items =", len(items))
-    #print("log =", log10(capacity * len(items)))
-    #if log10(capacity * len(items)) <= 8:
-    #    #print('dp')
-    #    value, taken = dp(capacity, items)
-    #else:
-    #    #print('greedy')
-    #    value, taken = greedy(capacity, items)
-    value, taken = opt(capacity, items)
+    if log10(capacity * len(items)) <= 8:
+        value, taken = dp(capacity, items)
+    else:
+        value, taken = opt(capacity, items)
 
     # prepare the solution in the specified output format
     output_data = str(value) + ' ' + str(0) + '\n' 
