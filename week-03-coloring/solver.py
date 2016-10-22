@@ -6,6 +6,7 @@ import numpy as np
 import cvxopt
 import cvxopt.glpk
 cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+import constraint as cstrt
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -32,14 +33,14 @@ def solve_it(input_data):
     # n < 100 --> largest first greedy
     # n >= 100 --> independent set greedy
     # ==========
-    if node_count < 100:
-        solution = greedy(node_count, 
-                          edges, 
-                          strategy = nx.coloring.strategy_largest_first)
-    else:
-        solution = greedy(node_count, 
-                          edges, 
-                          strategy = nx.coloring.strategy_independent_set)
+    #if node_count < 100:
+    #    solution = greedy(node_count, 
+    #                      edges, 
+    #                      strategy = nx.coloring.strategy_largest_first)
+    #else:
+    #    solution = greedy(node_count, 
+    #                      edges, 
+    #                      strategy = nx.coloring.strategy_independent_set)
 
     # MIP solution
     # slow but optimal
@@ -49,11 +50,26 @@ def solve_it(input_data):
     #print("E =", len(edges))
     #solution = mip(node_count, edges)
 
+    # constraint programming solution
+    # using module "python-constraint"
+    # only work with python2
+    # ==========
+    #solution = pycst(node_count, edges)
+
     # prepare the solution in the specified output format
     output_data = str(node_count) + ' ' + str(0) + '\n'
     output_data += ' '.join(map(str, solution))
 
     return output_data
+
+def pycst(node_count, edges):
+    minColor = cstrt.Problem()
+    for node in range(node_count):
+        minColor.addVariable(node, range(node_count))
+    for edge in edges:
+        minColor.addConstraint(lambda a, b: a != b, (edge[0], edge[1]))
+    soln = minColor.getSolutions()[0]
+    return [soln[node] for node in range(node_count)]
 
 def mip(node_count, edges):
     # objective
