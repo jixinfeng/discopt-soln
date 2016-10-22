@@ -1,9 +1,12 @@
 # discopt-soln-2016
-My solutions for discrete optimization course on Coursera
+My solutions for 
+[discrete optimization](https://www.coursera.org/learn/discrete-optimization/)
+course on Coursera
 
 # Assignment Grade
 * Week 01: 10/10
 * Week 02: 60/60
+* Week 03: 42/60
 
 # Install CVXOPT + GLPK on macOS
 * Install homebrew from [here](http://brew.sh)
