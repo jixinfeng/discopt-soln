@@ -6,7 +6,9 @@ import numpy as np
 import cvxopt
 import cvxopt.glpk
 cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
-import constraint as cstrt
+
+# python2.x only
+#import constraint as cstrt
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -33,14 +35,14 @@ def solve_it(input_data):
     # n < 100 --> largest first greedy
     # n >= 100 --> independent set greedy
     # ==========
-    #if node_count < 100:
-    #    solution = greedy(node_count, 
-    #                      edges, 
-    #                      strategy = nx.coloring.strategy_largest_first)
-    #else:
-    #    solution = greedy(node_count, 
-    #                      edges, 
-    #                      strategy = nx.coloring.strategy_independent_set)
+    if node_count < 100:
+        solution = greedy(node_count, 
+                          edges, 
+                          strategy = nx.coloring.strategy_largest_first)
+    else:
+        solution = greedy(node_count, 
+                          edges, 
+                          strategy = nx.coloring.strategy_independent_set)
 
     # MIP solution
     # slow but optimal
