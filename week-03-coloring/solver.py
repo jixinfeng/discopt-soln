@@ -1,6 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import networkx as nx
+import numpy as np
+import cvxopt
+import cvxopt.glpk
+cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -20,7 +25,17 @@ def solve_it(input_data):
 
     # build a trivial solution
     # every node has its own color
-    solution = range(0, node_count)
+    #solution = range(0, node_count)
+    #print(node_count, len(edges))
+    if node_count < 100:
+        solution = greedy(node_count, 
+                          edges, 
+                          strategy = nx.coloring.strategy_largest_first)
+    else:
+        solution = greedy(node_count, 
+                          edges, 
+                          strategy = nx.coloring.strategy_independent_set)
+
 
     # prepare the solution in the specified output format
     output_data = str(node_count) + ' ' + str(0) + '\n'
@@ -28,6 +43,15 @@ def solve_it(input_data):
 
     return output_data
 
+def mip(node_count, edges):
+    pass
+
+def greedy(node_count, edges, strategy):
+    G = nx.Graph()
+    G.add_nodes_from(range(node_count))
+    G.add_edges_from(edges)
+    coloring = nx.coloring.greedy_color(G = G, strategy = strategy)
+    return(list(coloring.values()))
 
 import sys
 
