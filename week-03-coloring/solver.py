@@ -5,7 +5,7 @@ import networkx as nx
 import numpy as np
 import cvxopt
 import cvxopt.glpk
-cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 # python2.x only
 #import constraint as cstrt
@@ -35,14 +35,14 @@ def solve_it(input_data):
     # n < 100 --> largest first greedy
     # n >= 100 --> independent set greedy
     # ==========
-    if node_count < 100:
-        solution = greedy(node_count, 
-                          edges, 
-                          strategy = nx.coloring.strategy_largest_first)
-    else:
-        solution = greedy(node_count, 
-                          edges, 
-                          strategy = nx.coloring.strategy_independent_set)
+    #if node_count < 100:
+    #    solution = greedy(node_count, 
+    #                      edges, 
+    #                      strategy = nx.coloring.strategy_largest_first)
+    #else:
+    #    solution = greedy(node_count, 
+    #                      edges, 
+    #                      strategy = nx.coloring.strategy_independent_set)
 
     # MIP solution
     # slow but optimal
@@ -50,7 +50,7 @@ def solve_it(input_data):
     # ==========
     #print("V =", node_count)
     #print("E =", len(edges))
-    #solution = mip(node_count, edges)
+    solution = mip(node_count, edges)
 
     # constraint programming solution
     # using module "python-constraint"
@@ -81,9 +81,14 @@ def mip(node_count, edges):
         c = np.hstack([c, np.zeros(node_count)])
 
     # equality constraints
-    A = np.zeros([node_count, color_count])
-    for i in range(color_count):
-        A = np.hstack([A, np.diag(np.ones(node_count))])
+    iA = []
+    jA = []
+    valA = []
+    for i in range(node_count):
+        for j in range(color_count):
+            iA.append(i)
+            jA.append(color_count + node_count * j + i)
+            valA.append(1)
 
     b = np.ones(node_count)
 
@@ -120,7 +125,7 @@ def mip(node_count, edges):
     status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(c),
                                    G = cvxopt.matrix(G),
                                    h = cvxopt.matrix(h),
-                                   A = cvxopt.matrix(A),
+                                   A = cvxopt.spmatrix(valA, iA, jA),
                                    b = cvxopt.matrix(b),
                                    I = binVars,
                                    B = binVars)
