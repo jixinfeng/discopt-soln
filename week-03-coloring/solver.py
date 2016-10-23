@@ -5,7 +5,8 @@ import networkx as nx
 import numpy as np
 import cvxopt
 import cvxopt.glpk
-#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+cvxopt.glpk.options['tm_lim'] = 100 * 10 ** 3 #ms
 
 # python2.x only
 #import constraint as cstrt
@@ -35,14 +36,14 @@ def solve_it(input_data):
     # n < 100 --> largest first greedy
     # n >= 100 --> independent set greedy
     # ==========
-    #if node_count < 100:
-    #    solution = greedy(node_count, 
-    #                      edges, 
-    #                      strategy = nx.coloring.strategy_largest_first)
-    #else:
-    #    solution = greedy(node_count, 
-    #                      edges, 
-    #                      strategy = nx.coloring.strategy_independent_set)
+    if node_count < 100:
+        solution = greedy(node_count, 
+                          edges, 
+                          strategy = nx.coloring.strategy_largest_first)
+    else:
+        solution = greedy(node_count, 
+                          edges, 
+                          strategy = nx.coloring.strategy_independent_set)
 
     # MIP solution
     # slow but optimal
@@ -50,7 +51,7 @@ def solve_it(input_data):
     # ==========
     #print("V =", node_count)
     #print("E =", len(edges))
-    solution = mip(node_count, edges)
+    #solution = mip(node_count, edges)
 
     # constraint programming solution
     # using module "python-constraint"
@@ -76,43 +77,80 @@ def pycst(node_count, edges):
 def mip(node_count, edges):
     # objective
     color_count = node_count
+    edge_count = len(edges)
     c = np.ones(color_count)
     for i in range(color_count):
         c = np.hstack([c, np.zeros(node_count)])
 
     # equality constraints
-    iA = []
-    jA = []
+    xA = []
+    yA = []
     valA = []
     for i in range(node_count):
         for j in range(color_count):
-            iA.append(i)
-            jA.append(color_count + node_count * j + i)
+            xA.append(i)
+            yA.append(color_count + node_count * j + i)
             valA.append(1)
 
     b = np.ones(node_count)
 
     # inequality constraints
-    G = np.empty(shape = (0, color_count * (node_count + 1)))
+    xG = []
+    yG = []
+    valG = []
+
+    ## x_ik - y_k <= 0
+    xPos = 0
     for i in range(node_count):
         for j in range(color_count):
-            gRow = np.zeros(color_count * (node_count + 1))
-            gRow[j] = -1
-            gRow[color_count + j * node_count + i] = 1
-            G = np.vstack([G, gRow])
+            xG.append(i * color_count + j)
+            yG.append(j)
+            valG.append(-1)
+            xG.append(i * color_count + j)
+            yG.append(color_count + j * node_count + i)
+            valG.append(1)
 
-    for edge in edges:
+    ## x_ik + x_jk <= 1
+    xPos += node_count * color_count
+    for i, edge in enumerate(edges):
         for j in range(color_count):
-            gRow = np.zeros(color_count * (node_count + 1))
-            gRow[color_count + j * node_count + edge[0]] = 1
-            gRow[color_count + j * node_count + edge[1]] = 1
-            G = np.vstack([G, gRow])
+            xG.append(xPos + i * color_count + j)
+            yG.append(color_count + j * node_count + edge[0])
+            valG.append(1)
+            xG.append(xPos + i * color_count + j)
+            yG.append(color_count + j * node_count + edge[1])
+            valG.append(1)
 
-    for i in range(color_count - 1):
-        gRow = np.zeros(color_count * (node_count + 1))
-        gRow[i] = -1
-        gRow[i + 1] = 1
-        G = np.vstack([G, gRow])
+    ## y_(i + 1) - y_i <= 0
+    xPos += edge_count * color_count
+    for j in range(color_count - 1):
+        xG.append(xPos + j)
+        yG.append(j)
+        valG.append(-1)
+        xG.append(xPos + j)
+        yG.append(j + 1)
+        valG.append(1)
+
+    #G = np.empty(shape = (0, color_count * (node_count + 1)))
+    #for i in range(node_count):
+    #    for j in range(color_count):
+    #        gRow = np.zeros(color_count * (node_count + 1))
+    #        gRow[j] = -1
+    #        gRow[color_count + j * node_count + i] = 1
+    #        G = np.vstack([G, gRow])
+
+    #for edge in edges:
+    #    for j in range(color_count):
+    #        gRow = np.zeros(color_count * (node_count + 1))
+    #        gRow[color_count + j * node_count + edge[0]] = 1
+    #        gRow[color_count + j * node_count + edge[1]] = 1
+    #        G = np.vstack([G, gRow])
+
+    #for i in range(color_count - 1):
+    #    gRow = np.zeros(color_count * (node_count + 1))
+    #    gRow[i] = -1
+    #    gRow[i + 1] = 1
+    #    G = np.vstack([G, gRow])
     
     h = np.hstack([np.zeros(node_count * color_count), 
                    np.ones(len(edges) * color_count),
@@ -123,9 +161,9 @@ def mip(node_count, edges):
         binVars.add(var)
 
     status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(c),
-                                   G = cvxopt.matrix(G),
+                                   G = cvxopt.spmatrix(valG, xG, yG),
                                    h = cvxopt.matrix(h),
-                                   A = cvxopt.spmatrix(valA, iA, jA),
+                                   A = cvxopt.spmatrix(valA, xA, yA),
                                    b = cvxopt.matrix(b),
                                    I = binVars,
                                    B = binVars)
