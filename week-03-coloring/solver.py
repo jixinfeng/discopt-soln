@@ -6,8 +6,8 @@ import numpy as np
 import cvxopt
 import cvxopt.glpk
 cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
-cvxopt.glpk.options['tm_lim'] = 100 * 10 ** 3 #ms
-#cvxopt.glpk.options['mip_gap'] = 0.25 #%
+#cvxopt.glpk.options['tm_lim'] = 100 * 10 ** 3 #ms
+#cvxopt.glpk.options['mip_gap'] = 0.25 #
 
 # python2.x only
 #import constraint as cstrt
