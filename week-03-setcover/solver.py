@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # The MIT License (MIT)
@@ -25,6 +25,10 @@
 
 
 from collections import namedtuple
+import numpy as np
+import cvxopt
+import cvxopt.glpk
+#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Set = namedtuple("Set", ['index', 'cost', 'items'])
 
@@ -45,15 +49,21 @@ def solve_it(input_data):
 
     # build a trivial solution
     # pick add sets one-by-one until all the items are covered
-    solution = [0]*set_count
-    coverted = set()
-    
-    for s in sets:
-        solution[s.index] = 1
-        coverted |= set(s.items)
-        if len(coverted) >= item_count:
-            break
+    # ==========
+    #solution = [0]*set_count
+    #coverted = set()
+    #
+    #for s in sets:
+    #    solution[s.index] = 1
+    #    coverted |= set(s.items)
+    #    if len(coverted) >= item_count:
+    #        break
         
+    # MIP solution
+    # slow but optimal
+    # ==========
+    solution = mip(item_count, sets)
+
     # calculate the cost of the solution
     obj = sum([s.cost*solution[s.index] for s in sets])
 
@@ -63,6 +73,32 @@ def solve_it(input_data):
 
     return output_data
 
+def mip(item_count, sets):
+    set_count = len(sets)
+
+    c = np.zeros(set_count)
+    h = -1 * np.ones(item_count)
+    xG = []
+    yG = []
+    valG = []
+    for i, s in enumerate(sets):
+        c[i] = s.cost
+        for item in s.items:
+            xG.append(item)
+            yG.append(i)
+            valG.append(-1)
+
+    binVars=set()
+    for var in range(set_count):
+        binVars.add(var)
+        
+    status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(c),
+                                   G = cvxopt.spmatrix(valG, xG, yG),
+                                   h = cvxopt.matrix(h),
+                                   I = binVars,
+                                   B = binVars)
+
+    return list(map(int, isol))
 
 import sys
 
