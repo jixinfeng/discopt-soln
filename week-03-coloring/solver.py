@@ -132,27 +132,6 @@ def mip(node_count, edges):
         yG.append(j + 1)
         valG.append(1)
 
-    #G = np.empty(shape = (0, color_count * (node_count + 1)))
-    #for i in range(node_count):
-    #    for j in range(color_count):
-    #        gRow = np.zeros(color_count * (node_count + 1))
-    #        gRow[j] = -1
-    #        gRow[color_count + j * node_count + i] = 1
-    #        G = np.vstack([G, gRow])
-
-    #for edge in edges:
-    #    for j in range(color_count):
-    #        gRow = np.zeros(color_count * (node_count + 1))
-    #        gRow[color_count + j * node_count + edge[0]] = 1
-    #        gRow[color_count + j * node_count + edge[1]] = 1
-    #        G = np.vstack([G, gRow])
-
-    #for i in range(color_count - 1):
-    #    gRow = np.zeros(color_count * (node_count + 1))
-    #    gRow[i] = -1
-    #    gRow[i + 1] = 1
-    #    G = np.vstack([G, gRow])
-    
     h = np.hstack([np.zeros(node_count * color_count), 
                    np.ones(len(edges) * color_count),
                    np.zeros(color_count - 1)])
