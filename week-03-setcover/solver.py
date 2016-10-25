@@ -28,7 +28,7 @@ from collections import namedtuple
 import numpy as np
 import cvxopt
 import cvxopt.glpk
-#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Set = namedtuple("Set", ['index', 'cost', 'items'])
 
@@ -58,11 +58,20 @@ def solve_it(input_data):
     #    coverted |= set(s.items)
     #    if len(coverted) >= item_count:
     #        break
+
+    # greedy solution
+    # this is essentially the best-possible polynomial time approximation
+    # algorithm for set cover
+    # https://en.wikipedia.org/wiki/Set_cover_problem
+    # ==========
+    if len(sets) > 500:
+        solution = greedy(item_count, sets)
         
     # MIP solution
     # slow but optimal
     # ==========
-    solution = mip(item_count, sets)
+    else:
+        solution = mip(item_count, sets)
 
     # calculate the cost of the solution
     obj = sum([s.cost*solution[s.index] for s in sets])
@@ -99,6 +108,26 @@ def mip(item_count, sets):
                                    B = binVars)
 
     return list(map(int, isol))
+
+def greedy(item_count, sets):
+    coveredItems = set()
+    setDiffs = {}
+    soln = [0] * len(sets)
+    while len(coveredItems) < item_count:
+        maxCoverDensity = 0
+        maxCoverSet = set()
+        maxCoverIndex = -1
+        for i, s in enumerate(sets):
+            setDiffs[i] = setDiffs.get(i, set(s.items)) - coveredItems
+            newCoverDensity = len(setDiffs[i]) / s.cost
+            if newCoverDensity > maxCoverDensity:
+                maxCoverSet = setDiffs[i]
+                maxCoverDensity = newCoverDensity
+                maxCoverIndex = s.index
+        coveredItems |= maxCoverSet
+        soln[maxCoverIndex] = 1
+        #print(coveredItems)
+    return soln
 
 import sys
 
