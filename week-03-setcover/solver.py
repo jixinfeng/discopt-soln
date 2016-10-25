@@ -64,14 +64,12 @@ def solve_it(input_data):
     # algorithm for set cover
     # https://en.wikipedia.org/wiki/Set_cover_problem
     # ==========
-    if len(sets) > 500:
-        solution = greedy(item_count, sets)
+    solution = greedy(item_count, sets)
         
     # MIP solution
     # slow but optimal
     # ==========
-    else:
-        solution = mip(item_count, sets)
+    #solution = mip(item_count, sets)
 
     # calculate the cost of the solution
     obj = sum([s.cost*solution[s.index] for s in sets])
