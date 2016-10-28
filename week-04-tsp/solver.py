@@ -3,11 +3,20 @@
 
 import math
 from collections import namedtuple
+import itertools
+import numpy as np
+import cvxopt
+import cvxopt.glpk
+cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Point = namedtuple("Point", ['x', 'y'])
 
 def length(point1, point2):
     return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+
+def cycleLength(cycle, points):
+    return sum([length(points[cycle[i - 1]], points[cycle[i]]) 
+                for i in range(len(points))])
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -25,12 +34,22 @@ def solve_it(input_data):
 
     # build a trivial solution
     # visit the nodes in the order they appear in the file
-    solution = range(0, nodeCount)
+    # ==========
+    #solution = range(0, nodeCount)
+
+    # naive solution
+    # by applying brute force
+    # prohibitively slow but optimal
+    # ==========
+    solution = naive(nodeCount, points)
+
+    # MIP solution
+    # slow but optimal
+    # ==========
+    #solution = mip(nodeCount, points)
 
     # calculate the length of the tour
-    obj = length(points[solution[-1]], points[solution[0]])
-    for index in range(0, nodeCount-1):
-        obj += length(points[solution[index]], points[solution[index+1]])
+    obj = cycleLength(solution, points)
 
     # prepare the solution in the specified output format
     output_data = '%.2f' % obj + ' ' + str(0) + '\n'
@@ -38,6 +57,20 @@ def solve_it(input_data):
 
     return output_data
 
+def mip(nodeCount, points):
+
+    soln = []
+    return soln
+
+def naive(nodeCount, points):
+    minDist = 2 ** 32
+    bestCycle = list(range(nodeCount))
+    for cycle in itertools.permutations(range(nodeCount)):
+        travelDist = cycleLength(cycle, points)
+        if travelDist < minDist:
+            minDist = travelDist
+            bestCycle = cycle
+    return bestCycle
 
 import sys
 
