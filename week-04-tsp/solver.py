@@ -18,6 +18,18 @@ def cycleLength(cycle, points):
     return sum([length(points[cycle[i - 1]], points[cycle[i]]) 
                 for i in range(len(points))])
 
+def pairLengths(points):
+    dists = np.zeros([len(points), len(points)])
+    for i, p in enumerate(points):
+        for j, q in enumerate(points):
+            if i == j:
+                continue
+            elif i < j:
+                dists[i][j] = length(p, q)
+            else:
+                dists[i][j] = dists[j][i]
+    return dists
+
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
 
@@ -39,9 +51,13 @@ def solve_it(input_data):
 
     # naive solution
     # by applying brute force
-    # prohibitively slow but optimal
+    # prohibitively slow but optimal O(n!)
     # ==========
-    solution = naive(nodeCount, points)
+    #solution = naive(nodeCount, points)
+
+    # greedy solution
+    # ==========
+    solution = greedy(nodeCount, points)
 
     # MIP solution
     # slow but optimal
@@ -60,6 +76,14 @@ def solve_it(input_data):
 def mip(nodeCount, points):
 
     soln = []
+    return soln
+
+def greedy(nodeCount, points):
+    soln = [0]
+    dists = pairLengths(points)
+    for step in range(nodeCount - 1):
+        nextSteps = np.argsort(dists[soln[-1]])
+        soln.append([node for node in nextSteps if node not in set(soln)][0])
     return soln
 
 def naive(nodeCount, points):
