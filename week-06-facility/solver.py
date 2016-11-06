@@ -3,6 +3,10 @@
 
 from collections import namedtuple
 import math
+import numpy as np
+import cvxopt
+import cvxopt.glpk
+cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'])
@@ -33,25 +37,28 @@ def solve_it(input_data):
 
     # build a trivial solution
     # pack the facilities one by one until all the customers are served
-    solution = [-1]*len(customers)
-    capacity_remaining = [f.capacity for f in facilities]
+    # ==========
+    #solution = [-1]*len(customers)
+    #capacity_remaining = [f.capacity for f in facilities]
 
-    facility_index = 0
-    for customer in customers:
-        if capacity_remaining[facility_index] >= customer.demand:
-            solution[customer.index] = facility_index
-            capacity_remaining[facility_index] -= customer.demand
-        else:
-            facility_index += 1
-            assert capacity_remaining[facility_index] >= customer.demand
-            solution[customer.index] = facility_index
-            capacity_remaining[facility_index] -= customer.demand
+    #facility_index = 0
+    #for customer in customers:
+    #    if capacity_remaining[facility_index] >= customer.demand:
+    #        solution[customer.index] = facility_index
+    #        capacity_remaining[facility_index] -= customer.demand
+    #    else:
+    #        facility_index += 1
+    #        assert capacity_remaining[facility_index] >= customer.demand
+    #        solution[customer.index] = facility_index
+    #        capacity_remaining[facility_index] -= customer.demand
 
+    solution = mip(facilities, customers)
+
+    # calculate the cost of the solution
     used = [0]*len(facilities)
     for facility_index in solution:
         used[facility_index] = 1
 
-    # calculate the cost of the solution
     obj = sum([f.setup_cost*used[f.index] for f in facilities])
     for customer in customers:
         obj += length(customer.location, facilities[solution[customer.index]].location)
@@ -62,6 +69,53 @@ def solve_it(input_data):
 
     return output_data
 
+def mip(facilities, customers):
+    M = len(customers)
+    N = len(facilities)
+    c = []
+    for j in range(N):
+        for i in range(M):
+            c.append(length(facilities[j].location, customers[i].location) +
+                     facilities[j].setup_cost)
+
+    xA = []
+    yA = []
+    valA = []
+    for i in range(M):
+        for j in range(N):
+            xA.append(i)
+            yA.append(M * j + i)
+            valA.append(1)
+
+    b = np.ones(M)
+            
+    xG = []
+    yG = []
+    valG = []
+    for i in range(N):
+        for j in range(M):
+            xG.append(i)
+            yG.append(M * i + j)
+            valG.append(customers[j].demand)
+    h = np.array([facility.capacity for facility in facilities], dtype = 'd')
+
+    binVars=set()
+    for var in range(M * N):
+        binVars.add(var)
+
+    status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(c),
+                                   G = cvxopt.spmatrix(valG, xG, yG),
+                                   h = cvxopt.matrix(h),
+                                   A = cvxopt.spmatrix(valA, xA, yA),
+                                   b = cvxopt.matrix(b),
+                                   I = binVars,
+                                   B = binVars)
+    soln = []
+    for i in range(M):
+        for j in range(N):
+            if isol[M * j + i] == 1:
+                soln.append(j)
+    return soln
 
 import sys
 

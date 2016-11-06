@@ -5,20 +5,21 @@ import math
 from collections import namedtuple
 import itertools
 import numpy as np
-import cvxopt
-import cvxopt.glpk
-cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+import networkx as nx
+#import cvxopt
+#import cvxopt.glpk
+#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Point = namedtuple("Point", ['x', 'y'])
 
 def length(point1, point2):
-    return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+    return math.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
 
-def cycleLength(cycle, points):
+def tspLength(cycle, points):
     return sum([length(points[cycle[i - 1]], points[cycle[i]]) 
                 for i in range(len(points))])
 
-def pairLengths(points):
+def edgeLengths(points):
     dists = np.zeros([len(points), len(points)])
     for i, p in enumerate(points):
         for j, q in enumerate(points):
@@ -57,7 +58,8 @@ def solve_it(input_data):
 
     # greedy solution
     # ==========
-    solution = greedy(nodeCount, points)
+    #solution = greedy(nodeCount, points)
+    solution = dp(nodeCount, points)
 
     # MIP solution
     # slow but optimal
@@ -65,7 +67,7 @@ def solve_it(input_data):
     #solution = mip(nodeCount, points)
 
     # calculate the length of the tour
-    obj = cycleLength(solution, points)
+    obj = tspLength(solution, points)
 
     # prepare the solution in the specified output format
     output_data = '%.2f' % obj + ' ' + str(0) + '\n'
@@ -79,18 +81,91 @@ def mip(nodeCount, points):
     return soln
 
 def greedy(nodeCount, points):
-    soln = [0]
-    dists = pairLengths(points)
-    for step in range(nodeCount - 1):
-        nextSteps = np.argsort(dists[soln[-1]])
-        soln.append([node for node in nextSteps if node not in set(soln)][0])
-    return soln
+    kGraph = nx.Graph()
+    for u in range(nodeCount):
+        for v in range(u + 1, nodeCount):
+            
+            kGraph.add_edge(u, v, 
+                            weight = length(points[u], points[v]))
+
+    mst = nx.minimum_spanning_tree(kGraph)
+
+#    for step in range(nodeCount - 1):
+#        nextSteps = np.argsort(dists[soln[-1]])
+#        soln.append([node for node in nextSteps if node not in set(soln)][0])
+    return list(nx.dfs_preorder_nodes(mst))
+
+def dp(nodeCount, points):
+    dists = edgeLengths(points)
+    return held_karp(dists)[1]
+
+def held_karp(dists):
+    """
+    Implementation of Held-Karp, an algorithm that solves the Traveling
+    Salesman Problem using dynamic programming with memoization.
+    Parameters:
+        dists: distance matrix
+    Returns:
+        A tuple, (cost, path).
+    """
+    n = len(dists)
+
+    # Maps each subset of the nodes to the cost to reach that subset, as well
+    # as what node it passed before reaching this subset.
+    # Node subsets are represented as set bits.
+    C = {}
+
+    # Set transition cost from initial state
+    for k in range(1, n):
+        C[(1 << k, k)] = (dists[0][k], 0)
+
+    # Iterate subsets of increasing length and store intermediate results
+    # in classic dynamic programming manner
+    for subset_size in range(2, n):
+        for subset in itertools.combinations(range(1, n), subset_size):
+            # Set bits for all nodes in this subset
+            bits = 0
+            for bit in subset:
+                bits |= 1 << bit
+
+            # Find the lowest cost to get to this subset
+            for k in subset:
+                prev = bits & ~(1 << k)
+
+                res = []
+                for m in subset:
+                    if m == 0 or m == k:
+                        continue
+                    res.append((C[(prev, m)][0] + dists[m][k], m))
+                C[(bits, k)] = min(res)
+
+    # We're interested in all bits but the least significant (the start state)
+    bits = (2**n - 1) - 1
+
+    # Calculate optimal cost
+    res = []
+    for k in range(1, n):
+        res.append((C[(bits, k)][0] + dists[k][0], k))
+    opt, parent = min(res)
+
+    # Backtrack to find full path
+    path = []
+    for i in range(n - 1):
+        path.append(parent)
+        new_bits = bits & ~(1 << parent)
+        _, parent = C[(bits, parent)]
+        bits = new_bits
+
+    # Add implicit start state
+    path.append(0)
+
+    return opt, list(reversed(path))
 
 def naive(nodeCount, points):
     minDist = 2 ** 32
     bestCycle = list(range(nodeCount))
     for cycle in itertools.permutations(range(nodeCount)):
-        travelDist = cycleLength(cycle, points)
+        travelDist = tspLength(cycle, points)
         if travelDist < minDist:
             minDist = travelDist
             bestCycle = cycle
