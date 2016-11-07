@@ -7,6 +7,8 @@ import numpy as np
 import cvxopt
 import cvxopt.glpk
 cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+cvxopt.glpk.options['tm_lim'] = 3600 * 10 ** 3 #1hr
+#cvxopt.glpk.options['mip_gap'] = 0.10
 
 Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'])
