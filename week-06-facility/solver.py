@@ -6,7 +6,7 @@ import math
 import numpy as np
 import cvxopt
 import cvxopt.glpk
-cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'])
@@ -74,9 +74,10 @@ def mip(facilities, customers):
     N = len(facilities)
     c = []
     for j in range(N):
+        c.append(facilities[j].setup_cost)
+    for j in range(N):
         for i in range(M):
-            c.append(length(facilities[j].location, customers[i].location) +
-                     facilities[j].setup_cost)
+            c.append(length(facilities[j].location, customers[i].location))
 
     xA = []
     yA = []
@@ -84,7 +85,7 @@ def mip(facilities, customers):
     for i in range(M):
         for j in range(N):
             xA.append(i)
-            yA.append(M * j + i)
+            yA.append(N + M * j + i)
             valA.append(1)
 
     b = np.ones(M)
@@ -94,13 +95,23 @@ def mip(facilities, customers):
     valG = []
     for i in range(N):
         for j in range(M):
-            xG.append(i)
-            yG.append(M * i + j)
+            xG.append(M * i + j)
+            yG.append(i)
+            valG.append(-1)
+            xG.append(M * i + j)
+            yG.append(N + M * i + j)
+            valG.append(1)
+
+    for i in range(N):
+        for j in range(M):
+            xG.append(N * M + i)
+            yG.append(N + M * i + j)
             valG.append(customers[j].demand)
-    h = np.array([facility.capacity for facility in facilities], dtype = 'd')
+    h = np.hstack([np.zeros(N * M), 
+                   np.array([fa.capacity for fa in facilities], dtype = 'd')])
 
     binVars=set()
-    for var in range(M * N):
+    for var in range(N + M * N):
         binVars.add(var)
 
     status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(c),
@@ -113,7 +124,7 @@ def mip(facilities, customers):
     soln = []
     for i in range(M):
         for j in range(N):
-            if isol[M * j + i] == 1:
+            if isol[N + M * j + i] == 1:
                 soln.append(j)
     return soln
 
