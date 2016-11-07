@@ -6,7 +6,7 @@ import math
 import numpy as np
 import cvxopt
 import cvxopt.glpk
-#cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'])
