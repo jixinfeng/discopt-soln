@@ -1,4 +1,4 @@
-# discopt-soln-2016
+# discopt-soln
 My solutions for 
 [discrete optimization](https://www.coursera.org/learn/discrete-optimization/)
 course on Coursera

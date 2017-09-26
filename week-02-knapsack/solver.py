@@ -3,12 +3,13 @@
 
 from collections import namedtuple
 from operator import attrgetter
-from math import log10
 
-import numpy as np
-import cvxopt
-import cvxopt.glpk
-cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+from gurobipy import *
+
+# import numpy as np
+# import cvxopt
+# import cvxopt.glpk
+# cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
 
 Item = namedtuple("Item", ['index', 'value', 'weight', 'density'])
 
@@ -30,37 +31,58 @@ def solve_it(input_data):
         v, w = int(parts[0]), int(parts[1])
         items.append(Item(i-1, v, w, 1.0 * v / w))
 
-    if log10(capacity * len(items)) <= 8:
-        value, taken = dp(capacity, items)
-    else:
-        value, taken = mip(capacity, items)
+    value, taken = mip_gurobi(capacity, items)
+    # value, taken = dp(capacity, items)
+    # value, taken = mip_glpk(capacity, items)
 
     # prepare the solution in the specified output format
     output_data = str(value) + ' ' + str(0) + '\n' 
     output_data += ' '.join(map(str, taken))
     return output_data
 
-def mip(cap, items):
+
+def mip_gurobi(cap, items, verbose=False, num_threads=None):
     item_count = len(items)
-    values = np.zeros(item_count)
-    weights = np.zeros([1, item_count])
+    values = [item.value for item in items]
+    weights = [item.weight for item in items]
 
-    for i in range(item_count):
-        values[i] = items[i].value
-        weights[0][i] = items[i].weight
+    m = Model("knapsack")
+    m.setParam('OutputFlag', verbose)
+    if num_threads:
+        m.setParam("Threads", num_threads)
 
-    binVars=set()
-    for var in range(item_count):
-        binVars.add(var)
+    x = m.addVars(item_count, vtype=GRB.BINARY, name="items")
+    m.setObjective(LinExpr(values, [x[i] for i in range(item_count)]), GRB.MAXIMIZE)
+    m.addConstr(LinExpr(weights, [x[i] for i in range(item_count)]), GRB.LESS_EQUAL, cap, name="capacity")
 
-    status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(-values, tc='d'),
-                                   G = cvxopt.matrix(weights, tc='d'),
-                                   h = cvxopt.matrix(cap, tc='d'),
-                                   I = binVars,
-                                   B = binVars)
-    taken = [int(val) for val in isol]
-    value = int(np.dot(values, np.array(taken)))
-    return value, taken
+    m.update()
+    m.optimize()
+
+    return int(m.objVal), [int(var.x) for var in m.getVars()]
+
+
+# def mip_glpk(cap, items):
+#     item_count = len(items)
+#     values = np.zeros(item_count)
+#     weights = np.zeros([1, item_count])
+#
+#     for i in range(item_count):
+#         values[i] = items[i].value
+#         weights[0][i] = items[i].weight
+#
+#     binVars=set()
+#     for var in range(item_count):
+#         binVars.add(var)
+#
+#     status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(-values, tc='d'),
+#                                    G = cvxopt.matrix(weights, tc='d'),
+#                                    h = cvxopt.matrix(cap, tc='d'),
+#                                    I = binVars,
+#                                    B = binVars)
+#     taken = [int(val) for val in isol]
+#     value = int(np.dot(values, np.array(taken)))
+#     return value, taken
+
 
 def dp(cap, items):
     n = len(items)
@@ -90,6 +112,7 @@ def dp(cap, items):
 
     return values[-1][-1], taken
 
+
 def greedy(cap, items):
     n = len(items)
     taken = [0] * n
@@ -102,6 +125,7 @@ def greedy(cap, items):
             filled += item.weight
 
     return value, taken
+
 
 if __name__ == '__main__':
     import sys
