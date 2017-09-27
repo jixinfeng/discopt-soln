@@ -4,6 +4,7 @@
 from collections import namedtuple
 from operator import attrgetter
 
+from psutil import cpu_count
 from gurobipy import *
 
 # import numpy as np
@@ -50,6 +51,8 @@ def mip_gurobi(cap, items, verbose=False, num_threads=None):
     m.setParam('OutputFlag', verbose)
     if num_threads:
         m.setParam("Threads", num_threads)
+    else:
+        m.setParam("Threads", cpu_count())
 
     x = m.addVars(item_count, vtype=GRB.BINARY, name="items")
     m.setObjective(LinExpr(values, [x[i] for i in range(item_count)]), GRB.MAXIMIZE)
