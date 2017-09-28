@@ -3,7 +3,7 @@
 
 from psutil import cpu_count
 from gurobipy import *
-# import networkx as nx
+import networkx as nx
 # import numpy as np
 # import cvxopt
 # import cvxopt.glpk
@@ -30,7 +30,7 @@ def solve_it(input_data):
         parts = line.split()
         edges.append((int(parts[0]), int(parts[1])))
 
-    # build a trivial solution
+    # trivial solution
     # every node has its own color
     # ==========
     # solution = range(0, node_count)
@@ -42,32 +42,21 @@ def solve_it(input_data):
     # if node_count < 100:
     #     solution = greedy(node_count,
     #                       edges,
-    #                       strategy = nx.coloring.strategy_largest_first)
+    #                       strategy=nx.coloring.strategy_largest_first)
     # else:
     #     solution = greedy(node_count,
     #                       edges,
-    #                       strategy = nx.coloring.strategy_independent_set)
+    #                       strategy=nx.coloring.strategy_independent_set)
 
-    # MIP solution using GLPK
+    # MIP solution using Gurobi
     # slow but optimal
-    # not practical for graphs with order bigger than 20
     # ==========
     # print("V =", node_count)
     # print("E =", len(edges))
-    # solution = mip_glpk(node_count, edges)
-
-    # MIP solution using Gurobi
-    # ==========
     solution = mip_gurobi(node_count, edges)
 
-    # constraint programming solution
-    # using module "python-constraint"
-    # only work with python2
-    # ==========
-    # solution = pycst(node_count, edges)
-
     # prepare the solution in the specified output format
-    output_data = str(node_count) + ' ' + str(0) + '\n'
+    output_data = str(max(solution) + 1) + ' ' + str(0) + '\n'
     output_data += ' '.join(map(str, solution))
 
     return output_data
@@ -83,23 +72,36 @@ def mip_gurobi(node_count, edges, verbose=False, num_threads=None):
 
     colors = m.addVars(node_count, vtype=GRB.BINARY, name="colors")
     nodes = m.addVars(node_count, node_count, vtype=GRB.BINARY, name="assignments")
+    # node[(node_idx, color_idx)]
 
     m.setObjective(quicksum(colors), GRB.MINIMIZE)
 
+    # each node has only one color
     m.addConstrs((nodes.sum(i, "*") == 1
                   for i in range(node_count)),
                  name="eq1")
+
+    # only color in use can be assigned ot nodes
     m.addConstrs((nodes[(i, k)] - colors[k] <= 0
                   for i in range(node_count)
                   for k in range(node_count)),
                  name="ieq2")
+
+    # vertices sharing one edge have different colors
     m.addConstrs((nodes[(edge[0], k)] + nodes[(edge[1], k)] <= 1
                   for edge in edges
                   for k in range(node_count)),
                  name="ieq3")
+
+    # color index should be as low as possible
     m.addConstrs((colors[i] - colors[i + 1] >= 0
                   for i in range(node_count - 1)),
                  name="ieq4")
+
+    # more nodes should be assigned to color with lower index
+    m.addConstrs((colors[i] * nodes.sum("*", i) - colors[i + 1] * nodes.sum("*", i + 1) >= 0
+                  for i in range(node_count - 1)),
+                 name="ieq5")
 
     m.update()
     m.optimize()
@@ -110,103 +112,13 @@ def mip_gurobi(node_count, edges, verbose=False, num_threads=None):
     return soln
 
 
-# def pycst(node_count, edges):
-#     minColor = cstrt.Problem()
-#     for node in range(node_count):
-#         minColor.addVariable(node, range(node_count))
-#     for edge in edges:
-#         minColor.addConstraint(lambda a, b: a != b, (edge[0], edge[1]))
-#     soln = minColor.getSolutions()[0]
-#     return [soln[node] for node in range(node_count)]
-#
-# def mip_glpk(node_count, edges):
-#     # objective
-#     color_count = node_count
-#     edge_count = len(edges)
-#     c = np.ones(color_count)
-#     for i in range(color_count):
-#         c = np.hstack([c, np.zeros(node_count)])
-#
-#     # equality constraints
-#     xA = []
-#     yA = []
-#     valA = []
-#     for i in range(node_count):
-#         for j in range(color_count):
-#             xA.append(i)
-#             yA.append(color_count + node_count * j + i)
-#             valA.append(1)
-#
-#     b = np.ones(node_count)
-#
-#     # inequality constraints
-#     xG = []
-#     yG = []
-#     valG = []
-#
-#     ## x_ik - y_k <= 0
-#     xPos = 0
-#     for i in range(node_count):
-#         for j in range(color_count):
-#             xG.append(i * color_count + j)
-#             yG.append(j)
-#             valG.append(-1)
-#             xG.append(i * color_count + j)
-#             yG.append(color_count + j * node_count + i)
-#             valG.append(1)
-#
-#     ## x_ik + x_jk <= 1
-#     xPos += node_count * color_count
-#     for i, edge in enumerate(edges):
-#         for j in range(color_count):
-#             xG.append(xPos + i * color_count + j)
-#             yG.append(color_count + j * node_count + edge[0])
-#             valG.append(1)
-#             xG.append(xPos + i * color_count + j)
-#             yG.append(color_count + j * node_count + edge[1])
-#             valG.append(1)
-#
-#     ## y_(i + 1) - y_i <= 0
-#     xPos += edge_count * color_count
-#     for j in range(color_count - 1):
-#         xG.append(xPos + j)
-#         yG.append(j)
-#         valG.append(-1)
-#         xG.append(xPos + j)
-#         yG.append(j + 1)
-#         valG.append(1)
-#
-#     h = np.hstack([np.zeros(node_count * color_count),
-#                    np.ones(len(edges) * color_count),
-#                    np.zeros(color_count - 1)])
-#
-#     binVars=set()
-#     for var in range(color_count * (node_count + 1)):
-#         binVars.add(var)
-#
-#     status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(c),
-#                                    G = cvxopt.spmatrix(valG, xG, yG),
-#                                    h = cvxopt.matrix(h),
-#                                    A = cvxopt.spmatrix(valA, xA, yA),
-#                                    b = cvxopt.matrix(b),
-#                                    I = binVars,
-#                                    B = binVars)
-#     soln = []
-#     for i in range(node_count):
-#         for j in range(color_count):
-#             if isol[color_count + node_count * j + i] == 1:
-#                 soln.append(j)
-#                 break
-#     return soln
-
 def greedy(node_count, edges, strategy):
     G = nx.Graph()
     G.add_nodes_from(range(node_count))
     G.add_edges_from(edges)
-    coloring = nx.coloring.greedy_color(G = G, strategy = strategy)
-    return(list(coloring.values()))
+    coloring = nx.coloring.greedy_color(G=G, strategy=strategy)
+    return list(coloring.values())
 
-import sys
 
 if __name__ == '__main__':
     import sys
