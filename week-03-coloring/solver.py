@@ -28,23 +28,17 @@ def solve_it(input_data):
     # opt = 0
     # solution = range(0, node_count)
 
-    # greedy solution
-    # n < 100 --> largest first greedy
-    # n >= 100 --> independent set greedy
-    # ==========
-    # if node_count < 100:
-    #     solution = greedy(node_count,
-    #                       edges,
-    #                       strategy=nx.coloring.strategy_largest_first)
-    # else:
-    #     solution = greedy(node_count,
-    #                       edges,
-    #                       strategy=nx.coloring.strategy_independent_set)
+    if node_count <= 100:
+        # MIP solution using Gurobi
+        # slow but optimal
+        # ==========
+        value, opt, solution = mip_gurobi(node_count, edges, time_limit=3600, greedy_init=True)
+    else:
+        # greedy solution
+        # independent set greedy
+        # ==========
+        value, opt, solution = greedy(node_count, edges, strategy=nx.coloring.strategy_independent_set)
 
-    # MIP solution using Gurobi
-    # slow but optimal
-    # ==========
-    value, opt, solution = mip_gurobi(node_count, edges, verbose=True, time_limit=36000, greedy_init=True)
 
     # prepare the solution in the specified output format
     output_data = str(value) + ' ' + str(opt) + '\n'
@@ -70,6 +64,7 @@ def mip_gurobi(node_count, edges, verbose=False, num_threads=None, time_limit=No
 
     if greedy_init:
         strategy = nx.coloring.strategy_largest_first
+        # strategy = nx.coloring.strategy_largest_first
         init_value, _, init_soln = greedy(node_count, edges, strategy)
 
         for i in range(node_count):
@@ -104,11 +99,6 @@ def mip_gurobi(node_count, edges, verbose=False, num_threads=None, time_limit=No
     m.addConstrs((colors[i] - colors[i + 1] >= 0
                   for i in range(node_count - 1)),
                  name="ieq4")
-
-    # more nodes should be assigned to color with lower index
-    #m.addConstrs((colors[i] * nodes.sum("*", i) - colors[i + 1] * nodes.sum("*", i + 1) >= 0
-    #              for i in range(node_count - 1)),
-    #             name="ieq5")
 
     m.update()
     m.optimize()
