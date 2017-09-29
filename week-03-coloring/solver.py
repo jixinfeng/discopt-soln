@@ -32,13 +32,15 @@ def solve_it(input_data):
         # MIP solution using Gurobi
         # slow but optimal
         # ==========
-        value, opt, solution = mip_gurobi(node_count, edges, time_limit=3600, greedy_init=True)
+        value, opt, solution = mip_gurobi(node_count, edges,
+                                          verbose=False,
+                                          time_limit=3600,
+                                          greedy_init=True)
     else:
         # greedy solution
-        # independent set greedy
+        # try all greedy strategies provided by NetworkX and pick the best one
         # ==========
-        value, opt, solution = greedy(node_count, edges, strategy=nx.coloring.strategy_independent_set)
-
+        value, opt, solution = greedy(node_count, edges)
 
     # prepare the solution in the specified output format
     output_data = str(value) + ' ' + str(opt) + '\n'
@@ -63,9 +65,7 @@ def mip_gurobi(node_count, edges, verbose=False, num_threads=None, time_limit=No
     # nodes[(node_idx, color_idx)]
 
     if greedy_init:
-        strategy = nx.coloring.strategy_largest_first
-        # strategy = nx.coloring.strategy_largest_first
-        init_value, _, init_soln = greedy(node_count, edges, strategy)
+        init_value, _, init_soln = greedy(node_count, edges)
 
         for i in range(node_count):
             colors[i].setAttr("Start", 0)
@@ -116,13 +116,28 @@ def mip_gurobi(node_count, edges, verbose=False, num_threads=None, time_limit=No
     return color_count, opt, soln
 
 
-def greedy(node_count, edges, strategy):
+def greedy(node_count, edges):
     graph = nx.Graph()
     graph.add_nodes_from(range(node_count))
     graph.add_edges_from(edges)
-    coloring = nx.coloring.greedy_color(G=graph, strategy=strategy)
-    color_count = max(coloring.values()) + 1
-    return color_count, 0, [coloring[i] for i in range(node_count)]
+
+    strategies = [nx.coloring.strategy_largest_first,
+                  nx.coloring.strategy_random_sequential,
+                  nx.coloring.strategy_smallest_last,
+                  nx.coloring.strategy_independent_set,
+                  nx.coloring.strategy_connected_sequential_bfs,
+                  nx.coloring.strategy_connected_sequential_dfs,
+                  nx.coloring.strategy_connected_sequential,
+                  nx.coloring.strategy_saturation_largest_first]
+
+    best_color_count, best_coloring = node_count, {i: i for i in range(node_count)}
+    for strategy in strategies:
+        curr_coloring = nx.coloring.greedy_color(G=graph, strategy=strategy)
+        curr_color_count = max(curr_coloring.values()) + 1
+        if curr_color_count < best_color_count:
+            best_color_count = curr_color_count
+            best_coloring = curr_coloring
+    return best_color_count, 0, [best_coloring[i] for i in range(node_count)]
 
 
 if __name__ == '__main__':
