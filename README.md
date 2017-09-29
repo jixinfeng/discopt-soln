@@ -8,15 +8,6 @@ course on Coursera
 * Week 02: 60/60
 * Week 03: 42/60
 
-# Install CVXOPT + GLPK on macOS
-* Install homebrew from [here](http://brew.sh)
-* Install GLPK using homebrew: ```$ brew install glpk```
-* Download CVXOPT source code from [here](http://cvxopt.org)
-* Edit setup.py in CVXOPT source directory, turn ```BUILD_GLPK = 0``` to ```1```
-    * Some time the ```GLPK_LIB_DIR``` and ```GLPK_INC_DIR``` should be
-      corrected
-* Install CVXOPT: ```$ python3 setup.py install```
-
 # Install Anaconda + Gurobi
 * Download Anaconda install package from 
   [here](https://www.anaconda.com/download/)
