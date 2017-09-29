@@ -7,11 +7,6 @@ from operator import attrgetter
 from psutil import cpu_count
 from gurobipy import *
 
-# import numpy as np
-# import cvxopt
-# import cvxopt.glpk
-# cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
-
 Item = namedtuple("Item", ['index', 'value', 'weight', 'density'])
 
 def solve_it(input_data):
@@ -32,12 +27,19 @@ def solve_it(input_data):
         v, w = int(parts[0]), int(parts[1])
         items.append(Item(i-1, v, w, 1.0 * v / w))
 
-    value, taken = mip_gurobi(capacity, items)
+    # greedy solution
+    # put items with higher value "density" first
+    # value, opt, taken = greedy(capacity, items)
+
+    # dynamic programming solution
+    # optimal but high memory utilization with larger problem
+    # ==========
     # value, taken = dp(capacity, items)
-    # value, taken = mip_glpk(capacity, items)
+
+    value, opt, taken = mip_gurobi(capacity, items)
 
     # prepare the solution in the specified output format
-    output_data = str(value) + ' ' + str(0) + '\n' 
+    output_data = str(value) + ' ' + str(opt) + '\n'
     output_data += ' '.join(map(str, taken))
     return output_data
 
@@ -61,30 +63,12 @@ def mip_gurobi(cap, items, verbose=False, num_threads=None):
     m.update()
     m.optimize()
 
-    return int(m.objVal), [int(var.x) for var in m.getVars()]
+    if m.status == 2:
+        opt = 1
+    else:
+        opt = 0
 
-
-# def mip_glpk(cap, items):
-#     item_count = len(items)
-#     values = np.zeros(item_count)
-#     weights = np.zeros([1, item_count])
-#
-#     for i in range(item_count):
-#         values[i] = items[i].value
-#         weights[0][i] = items[i].weight
-#
-#     binVars=set()
-#     for var in range(item_count):
-#         binVars.add(var)
-#
-#     status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(-values, tc='d'),
-#                                    G = cvxopt.matrix(weights, tc='d'),
-#                                    h = cvxopt.matrix(cap, tc='d'),
-#                                    I = binVars,
-#                                    B = binVars)
-#     taken = [int(val) for val in isol]
-#     value = int(np.dot(values, np.array(taken)))
-#     return value, taken
+    return int(m.objVal), opt, [int(var.x) for var in m.getVars()]
 
 
 def dp(cap, items):
@@ -113,7 +97,7 @@ def dp(cap, items):
             taken[i] = 1
             totalWeight -= items[i].weight
 
-    return values[-1][-1], taken
+    return values[-1][-1], 1, taken
 
 
 def greedy(cap, items):
@@ -127,7 +111,7 @@ def greedy(cap, items):
             value += item.value
             filled += item.weight
 
-    return value, taken
+    return value, 0, taken
 
 
 if __name__ == '__main__':
