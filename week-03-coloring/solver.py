@@ -24,7 +24,7 @@ def solve_it(input_data):
     # trivial solution
     # every node has its own color
     # ==========
-    # value = node_count
+    # obj = node_count
     # opt = 0
     # solution = range(0, node_count)
 
@@ -32,24 +32,24 @@ def solve_it(input_data):
         # MIP solution using Gurobi
         # slow but optimal
         # ==========
-        value, opt, solution = mip_gurobi(node_count, edges,
-                                          verbose=False,
-                                          time_limit=3600,
-                                          greedy_init=True)
+        obj, opt, solution = mip(node_count, edges,
+                                 verbose=False,
+                                 time_limit=3600,
+                                 greedy_init=True)
     else:
         # greedy solution
         # try all greedy strategies provided by NetworkX and pick the best one
         # ==========
-        value, opt, solution = greedy(node_count, edges)
+        obj, opt, solution = greedy(node_count, edges)
 
     # prepare the solution in the specified output format
-    output_data = str(value) + ' ' + str(opt) + '\n'
+    output_data = str(obj) + ' ' + str(opt) + '\n'
     output_data += ' '.join(map(str, solution))
 
     return output_data
 
 
-def mip_gurobi(node_count, edges, verbose=False, num_threads=None, time_limit=None, greedy_init=False):
+def mip(node_count, edges, verbose=False, num_threads=None, time_limit=None, greedy_init=False):
     m = Model("graph_coloring")
     m.setParam('OutputFlag', verbose)
     if num_threads:

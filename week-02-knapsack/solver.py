@@ -29,22 +29,22 @@ def solve_it(input_data):
 
     # greedy solution
     # put items with higher value "density" first
-    # value, opt, taken = greedy(capacity, items)
+    # obj, opt, taken = greedy(capacity, items)
 
     # dynamic programming solution
     # optimal but high memory utilization with larger problem
     # ==========
-    # value, taken = dp(capacity, items)
+    # obj, taken = dp(capacity, items)
 
-    value, opt, taken = mip_gurobi(capacity, items)
+    obj, opt, taken = mip(capacity, items)
 
     # prepare the solution in the specified output format
-    output_data = str(value) + ' ' + str(opt) + '\n'
+    output_data = str(obj) + ' ' + str(opt) + '\n'
     output_data += ' '.join(map(str, taken))
     return output_data
 
 
-def mip_gurobi(cap, items, verbose=False, num_threads=None):
+def mip(cap, items, verbose=False, num_threads=None):
     item_count = len(items)
     values = [item.value for item in items]
     weights = [item.weight for item in items]

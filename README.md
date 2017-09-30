@@ -6,7 +6,9 @@ course on Coursera
 # Assignment Grade
 * Week 01: 10/10
 * Week 02: 60/60
-* Week 03: 42/60
+* Week 03: 
+    * 48/60 (Graph Coloring)
+    * (Set Cover)
 
 # Install Anaconda + Gurobi
 * Download Anaconda install package from 
