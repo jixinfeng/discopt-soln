@@ -25,10 +25,8 @@
 
 
 from collections import namedtuple
-import numpy as np
-import cvxopt
-import cvxopt.glpk
-cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
+from psutil import cpu_count
+from gurobipy import *
 
 Set = namedtuple("Set", ['index', 'cost', 'items'])
 
@@ -45,89 +43,79 @@ def solve_it(input_data):
     sets = []
     for i in range(1, set_count+1):
         parts = lines[i].split()
-        sets.append(Set(i-1, float(parts[0]), map(int, parts[1:])))
+        sets.append(Set(i-1, float(parts[0]), set(map(int, parts[1:]))))
 
-    # build a trivial solution
+    # trivial solution
     # pick add sets one-by-one until all the items are covered
     # ==========
-    #solution = [0]*set_count
-    #coverted = set()
-    #
-    #for s in sets:
-    #    solution[s.index] = 1
-    #    coverted |= set(s.items)
-    #    if len(coverted) >= item_count:
-    #        break
+    # obj, opt, solution = naive(item_count, sets)
 
-    # greedy solution
-    # this is essentially the best-possible polynomial time approximation
-    # algorithm for set cover
-    # https://en.wikipedia.org/wiki/Set_cover_problem
-    # ==========
-    solution = greedy(item_count, sets)
-        
     # MIP solution
     # slow but optimal
     # ==========
-    #solution = mip(item_count, sets)
+    obj, opt, solution = mip(item_count, sets,
+                             verbose=False,
+                             time_limit=3600)
 
     # calculate the cost of the solution
-    obj = sum([s.cost*solution[s.index] for s in sets])
+    # obj = sum([s.cost*solution[s.index] for s in sets])
 
     # prepare the solution in the specified output format
-    output_data = str(obj) + ' ' + str(0) + '\n'
+    output_data = str(obj) + ' ' + str(opt) + '\n'
     output_data += ' '.join(map(str, solution))
 
     return output_data
 
-def mip(item_count, sets):
-    set_count = len(sets)
 
-    c = np.zeros(set_count)
-    h = -1 * np.ones(item_count)
-    xG = []
-    yG = []
-    valG = []
-    for i, s in enumerate(sets):
-        c[i] = s.cost
-        for item in s.items:
-            xG.append(item)
-            yG.append(i)
-            valG.append(-1)
-
-    binVars=set()
-    for var in range(set_count):
-        binVars.add(var)
-        
-    status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(c),
-                                   G = cvxopt.spmatrix(valG, xG, yG),
-                                   h = cvxopt.matrix(h),
-                                   I = binVars,
-                                   B = binVars)
-
-    return list(map(int, isol))
-
-def greedy(item_count, sets):
-    coveredItems = set()
-    setDiffs = {}
+def naive(item_count, sets):
     soln = [0] * len(sets)
-    while len(coveredItems) < item_count:
-        maxCoverDensity = 0
-        maxCoverSet = set()
-        maxCoverIndex = -1
-        for i, s in enumerate(sets):
-            setDiffs[i] = setDiffs.get(i, set(s.items)) - coveredItems
-            newCoverDensity = len(setDiffs[i]) / s.cost
-            if newCoverDensity > maxCoverDensity:
-                maxCoverSet = setDiffs[i]
-                maxCoverDensity = newCoverDensity
-                maxCoverIndex = s.index
-        coveredItems |= maxCoverSet
-        soln[maxCoverIndex] = 1
-        #print(coveredItems)
-    return soln
+    covered = set()
 
-import sys
+    for s in sets:
+        soln[s.index] = 1
+        covered |= set(s.items)
+        if len(covered) >= item_count:
+            break
+
+    value = int(sum(map(lambda s: s.cost * soln[s.index], sets)))
+
+    return value, 0, soln
+
+
+
+def mip(item_count, sets, verbose=False, num_threads=None, time_limit=None):
+    m = Model("set_covering")
+    m.setParam('OutputFlag', verbose)
+    if num_threads:
+        m.setParam("Threads", num_threads)
+    else:
+        m.setParam("Threads", cpu_count())
+
+    if time_limit:
+        m.setParam("TimeLimit", time_limit)
+
+    selections = m.addVars(len(sets), vtype=GRB.BINARY, name="set_selection")
+
+    m.setObjective(LinExpr([s.cost for s in sets], [selections[i] for i in range(len(sets))]), GRB.MINIMIZE)
+
+    m.addConstrs((LinExpr([1 if j in s.items else 0 for s in sets], [selections[i] for i in range(len(sets))]) >= 1
+                  for j in range(item_count)),
+                 name="ieq1")
+
+    m.update()
+    m.optimize()
+
+    soln = [int(var.x) for var in m.getVars()]
+    total_cost = int(sum([sets[i].cost * soln[i] for i in range(len(sets))]))
+
+    if m.status == 2:
+        opt = 1
+    else:
+        opt = 0
+
+    return total_cost, opt, soln
+
+
 
 if __name__ == '__main__':
     import sys
