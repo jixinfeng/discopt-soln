@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import math
+import numpy as np
+import numpy.linalg as LA
 from collections import namedtuple
 
 Point = namedtuple("Point", ['x', 'y'])
@@ -11,7 +13,7 @@ def edge_length(point1, point2):
     return math.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
 
 
-def cycle_length(points, cycle):
+def cycle_length(cycle, points):
     return sum(edge_length(points[cycle[i - 1]], points[cycle[i]]) for i in range(len(cycle)))
 
 
@@ -21,17 +23,23 @@ def solve_it(input_data):
     # parse the input
     lines = input_data.split('\n')
 
-    node_count = int(lines[0])
+    point_count = int(lines[0])
 
     points = []
-    for i in range(1, node_count+1):
+    for i in range(1, point_count+1):
         line = lines[i]
         parts = line.split()
         points.append(Point(float(parts[0]), float(parts[1])))
 
     # trivial solution
-    # visit the nodes in the order they appear in the file
-    obj, opt, solution = trivial(points)
+    # visit the points in the order they appear in the file
+    # obj, opt, solution = trivial(points)
+
+    # greedy solution (nearest neighbor)
+    # starts from 0, add nearest neighbor to the cycle at each step
+    # generally acceptable, but can be arbitrarily bad
+    obj, opt, solution = greedy(points)
+
 
     # prepare the solution in the specified output format
     output_data = '%.2f' % obj + ' ' + str(opt) + '\n'
@@ -41,8 +49,26 @@ def solve_it(input_data):
 
 
 def trivial(points):
-    travel = range(len(points))
-    return cycle_length(points, travel), 0, list(travel)
+    cycle = range(len(points))
+    return cycle_length(cycle, points), 0, list(cycle)
+
+
+def greedy(points):
+    point_count = len(points)
+    coords = np.array([(point.x, point.y) for point in points])
+    cycle = [0]
+    candidates = set(range(1, point_count))
+    while candidates:
+        curr_point = cycle[-1]
+        nearest_neighbor = None
+        nearest_dist = np.inf
+        for neighbor in candidates:
+            if LA.norm(coords[curr_point] - coords[neighbor]) < nearest_dist:
+                nearest_neighbor = neighbor
+                nearest_dist = LA.norm(coords[curr_point] - coords[neighbor])
+        cycle.append(nearest_neighbor)
+        candidates.remove(nearest_neighbor)
+    return cycle_length(cycle, points), 0, cycle
 
 
 if __name__ == '__main__':
