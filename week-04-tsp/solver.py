@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import math
+import itertools
 import numpy as np
 import numpy.linalg as LA
 from collections import namedtuple
@@ -38,8 +39,10 @@ def solve_it(input_data):
     # greedy solution (nearest neighbor)
     # starts from 0, add nearest neighbor to the cycle at each step
     # generally acceptable, but can be arbitrarily bad
-    obj, opt, solution = greedy(points)
+    # obj, opt, solution = greedy(points)
 
+    # 2-opt solution
+    obj, opt, solution = two_opt(points)
 
     # prepare the solution in the specified output format
     output_data = '%.2f' % obj + ' ' + str(opt) + '\n'
@@ -69,6 +72,26 @@ def greedy(points):
         cycle.append(nearest_neighbor)
         candidates.remove(nearest_neighbor)
     return cycle_length(cycle, points), 0, cycle
+
+
+def swap(cycle, start, end):
+    return cycle[:start] + cycle[start:end + 1][::-1] + cycle[end + 1:]
+
+
+def two_opt(points):
+    point_count = len(points)
+    best_length, _, best_cycle = greedy(points)
+    improved = True
+    while improved:
+        improved = False
+        for start, end in itertools.combinations(range(point_count), 2):
+            curr_cycle = swap(best_cycle, start, end)
+            curr_length = cycle_length(curr_cycle, points)
+            if curr_length < best_length:
+                best_cycle = curr_cycle
+                best_length = curr_length
+                improved = True
+    return best_length, 0, best_cycle
 
 
 if __name__ == '__main__':
