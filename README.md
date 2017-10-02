@@ -4,11 +4,13 @@ My solutions for
 course on Coursera
 
 # Assignment Grade
-* Week 01: 10/10
-* Week 02: 60/60
-* Week 03: 
-    * 48/60 (Graph Coloring)
-    * 54/60 (Set Cover)
+* Submit an Integer: 10/10
+* Knapsack: 60/60
+* Graph Coloring: 48/60
+* Set Covering: 54/60
+* Travelling Salesman:
+* Facility Location:
+* Vehicle Routing:
 
 # Install Anaconda + Gurobi
 * Download Anaconda install package from 
