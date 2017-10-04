@@ -3,6 +3,7 @@
 
 import math
 import itertools
+import time
 import numpy as np
 import numpy.linalg as LA
 from collections import namedtuple
@@ -74,24 +75,33 @@ def greedy(points):
     return cycle_length(cycle, points), 0, cycle
 
 
-def swap(cycle, start, end):
-    return cycle[:start] + cycle[start:end + 1][::-1] + cycle[end + 1:]
+def swap(cycle, length, start, end, points):
+    new_cycle = cycle[:start] + cycle[start:end + 1][::-1] + cycle[end + 1:]
+    new_length = length - \
+                 (edge_length(points[cycle[start - 1]], points[cycle[start]]) +
+                  edge_length(points[cycle[end]], points[cycle[(end + 1) % len(cycle)]])) + \
+                 (edge_length(points[new_cycle[start - 1]], points[new_cycle[start]]) +
+                  edge_length(points[new_cycle[end]], points[new_cycle[(end + 1) % len(cycle)]]))
+    return new_cycle, new_length
 
 
 def two_opt(points):
     point_count = len(points)
     best_length, _, best_cycle = greedy(points)
     improved = True
+    t = time.clock()
     while improved:
         improved = False
         for start, end in itertools.combinations(range(point_count), 2):
-            curr_cycle = swap(best_cycle, start, end)
-            curr_length = cycle_length(curr_cycle, points)
+            curr_cycle, curr_length = swap(best_cycle, best_length, start, end, points)
             if curr_length < best_length:
                 best_cycle = curr_cycle
                 best_length = curr_length
                 improved = True
-    return best_length, 0, best_cycle
+                break
+        if time.clock() - t >= 4 * 3600 + 59 * 60:
+            improved = False
+    return cycle_length(best_cycle, points), 0, best_cycle
 
 
 if __name__ == '__main__':
