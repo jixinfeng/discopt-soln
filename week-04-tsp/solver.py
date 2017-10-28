@@ -43,7 +43,10 @@ def solve_it(input_data):
     # obj, opt, solution = greedy(points)
 
     # 2-opt solution
-    obj, opt, solution = two_opt(points)
+    # obj, opt, solution = two_opt(points)
+
+    # k-opt solution
+    obj, opt, solution = k_opt(points, 3, time_limit=3600)
 
     # prepare the solution in the specified output format
     output_data = '%.2f' % obj + ' ' + str(opt) + '\n'
@@ -75,33 +78,101 @@ def greedy(points):
     return cycle_length(cycle, points), 0, cycle
 
 
-def swap(cycle, length, start, end, points):
+def two_swap(cycle, length, start, end, points):
     new_cycle = cycle[:start] + cycle[start:end + 1][::-1] + cycle[end + 1:]
     new_length = length - \
-                 (edge_length(points[cycle[start - 1]], points[cycle[start]]) +
-                  edge_length(points[cycle[end]], points[cycle[(end + 1) % len(cycle)]])) + \
-                 (edge_length(points[new_cycle[start - 1]], points[new_cycle[start]]) +
-                  edge_length(points[new_cycle[end]], points[new_cycle[(end + 1) % len(cycle)]]))
+        (edge_length(points[cycle[start - 1]], points[cycle[start]]) +
+         edge_length(points[cycle[end]], points[cycle[(end + 1) % len(cycle)]])) + \
+        (edge_length(points[new_cycle[start - 1]], points[new_cycle[start]]) +
+         edge_length(points[new_cycle[end]], points[new_cycle[(end + 1) % len(cycle)]]))
     return new_cycle, new_length
 
 
-def two_opt(points):
+def two_swap_iteration(cycle, points):
     point_count = len(points)
-    best_length, _, best_cycle = greedy(points)
+    length = cycle_length(cycle, points)
+    improved = False
+    for start, end in itertools.combinations(range(1, point_count), 2):
+        new_cycle, new_length = two_swap(cycle, length, start, end, points)
+        if new_length < length:
+            cycle = new_cycle
+            length = new_length
+            improved = True
+            break
+    return cycle, length, improved
+
+
+def two_opt(points, initial=None, time_limit=None):
+    if initial:
+        cycle = initial
+    else:
+        _, _, cycle = greedy(points)
     improved = True
     t = time.clock()
     while improved:
-        improved = False
-        for start, end in itertools.combinations(range(point_count), 2):
-            curr_cycle, curr_length = swap(best_cycle, best_length, start, end, points)
-            if curr_length < best_length:
-                best_cycle = curr_cycle
-                best_length = curr_length
-                improved = True
+        if time_limit and time.clock() - t >= time_limit:
+            break
+        cycle, length, improved = two_swap_iteration(cycle, points)
+    return cycle_length(cycle, points), 0, cycle
+
+
+def k_swap(cycle, length, endpoints, points):
+    k = len(endpoints) + 1
+    segments = [cycle[endpoints[i]:endpoints[i + 1]] for i in range(len(endpoints) - 1)]
+    best_cycle = cycle
+    best_length = length
+    for num_reversed in range(k):
+        for reversed_parts in itertools.combinations(range(len(segments)), k):
+            new_segments = []
+            for i, segment in enumerate(segments):
+                if i in reversed_parts:
+                    new_segments.append(segment[::-1])
+                else:
+                    new_segments.append(segment)
+            for i, permuted_segments in enumerate(itertools.permutations(new_segments)):
+                if num_reversed == 0 and i == 0:
+                    continue
+                new_cycle = cycle[:endpoints[0]] + \
+                    list(itertools.chain.from_iterable(permuted_segments)) + \
+                    cycle[endpoints[-1] + 1:]
+                new_length = cycle_length(new_cycle, points)
+                if new_length < best_length:
+                    best_cycle = new_cycle
+                    best_length = best_length
+    return best_cycle, best_length
+
+
+def k_swap_iteration(cycle, points, k):
+    point_count = len(points)
+    length = cycle_length(cycle, points)
+    improved = False
+    for endpoints in itertools.combinations(range(1, point_count), k):
+        new_cycle, new_length = k_swap(cycle, length, endpoints, points)
+        # new_cycle, new_length = two_swap(cycle, length, endpoints[0], endpoints[1], points)
+        if new_length < length:
+            cycle = new_cycle
+            length = new_length
+            improved = True
+            break
+    return cycle, length, improved
+
+
+def k_opt(points, k_max=2, initial=None, time_limit=None):
+    if initial:
+        cycle = initial
+    else:
+        _, _, cycle = greedy(points)
+    t =  time.clock()
+    for k in range(2, k_max + 1):
+        improved = True
+        while improved:
+            if time_limit and time.clock() - t > time_limit:
                 break
-        if time.clock() - t >= 4 * 3600 + 59 * 60:
-            improved = False
-    return cycle_length(best_cycle, points), 0, best_cycle
+            cycle, length, improved = k_swap_iteration(cycle, points, k)
+    return cycle_length(cycle, points), 0, cycle
+
+
+
 
 
 if __name__ == '__main__':
