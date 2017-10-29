@@ -53,17 +53,17 @@ def solve_it(input_data):
     #         solution[customer.index] = facility_index
     #         capacity_remaining[facility_index] -= customer.demand
 
+    # calculate the cost of the solution
+    # used = [0]*len(facilities)
+    # for facility_index in solution:
+    #     used[facility_index] = 1
+
+    # obj = sum([f.setup_cost*used[f.index] for f in facilities])
+    # for customer in customers:
+    #     obj += length(customer.location, facilities[solution[customer.index]].location)
+
     obj, opt, solution = mip(facilities, customers,
                              verbose=False)
-
-    # calculate the cost of the solution
-    used = [0]*len(facilities)
-    for facility_index in solution:
-        used[facility_index] = 1
-
-    obj = sum([f.setup_cost*used[f.index] for f in facilities])
-    for customer in customers:
-        obj += length(customer.location, facilities[solution[customer.index]].location)
 
     # prepare the solution in the specified output format
     output_data = '%.2f' % obj + ' ' + str(opt) + '\n'
