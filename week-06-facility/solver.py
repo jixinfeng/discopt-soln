@@ -12,7 +12,7 @@ Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'
 Customer = namedtuple("Customer", ['index', 'demand', 'location'])
 
 
-def length(p1, p2):
+def dist(p1, p2):
     return math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
 
 
@@ -60,7 +60,7 @@ def solve_it(input_data):
 
     # obj = sum([f.setup_cost*used[f.index] for f in facilities])
     # for customer in customers:
-    #     obj += length(customer.location, facilities[solution[customer.index]].location)
+    #     obj += dist(customer.location, facilities[solution[customer.index]].location)
 
     obj, opt, solution = mip(facilities, customers,
                              verbose=False)
@@ -76,11 +76,6 @@ def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None)
     f_count = len(facilities)
     c_count = len(customers)
 
-    setup_costs = [f.setup_cost for f in facilities]
-    capacities = [f.capacity for f in facilities]
-    demands = [c.demand for c in customers]
-    dists = [[length(f.location, c.location) for f in facilities] for c in customers]
-
     m = Model("facility_location")
     m.setParam('OutputFlag', verbose)
     if num_threads:
@@ -94,9 +89,9 @@ def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None)
     x = m.addVars(f_count, vtype=GRB.BINARY, name="x")
     y = m.addVars(c_count, f_count, vtype=GRB.BINARY, name="y")
 
-    m.setObjective(LinExpr((setup_costs[j], x[j])
+    m.setObjective(LinExpr((facilities[j].setup_cost, x[j])
                            for j in range(f_count)) +
-                   LinExpr((dists[i][j], y[(i, j)])
+                   LinExpr((dist(customers[i].location, facilities[j].location), y[(i, j)])
                            for i in range(c_count)
                            for j in range(f_count)),
                    GRB.MINIMIZE)
@@ -110,8 +105,8 @@ def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None)
                   for j in range(f_count)),
                  name="xy_corr_constr")
 
-    m.addConstrs((LinExpr((demands[i], y[(i, j)])
-                          for i in range(c_count)) <= capacities[j]
+    m.addConstrs((LinExpr((customers[i].demand, y[(i, j)])
+                          for i in range(c_count)) <= facilities[j].capacity
                   for j in range(f_count)),
                  name="cap_constr")
 
