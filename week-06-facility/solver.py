@@ -1,21 +1,20 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-from collections import namedtuple
 import math
 import numpy as np
-import cvxopt
-import cvxopt.glpk
-cvxopt.glpk.options['msg_lev'] = 'GLP_MSG_OFF'
-cvxopt.glpk.options['tm_lim'] = 3600 * 10 ** 3 #1hr
-#cvxopt.glpk.options['mip_gap'] = 0.10
+from psutil import cpu_count
+from collections import namedtuple
+from gurobipy import *
 
 Point = namedtuple("Point", ['x', 'y'])
 Facility = namedtuple("Facility", ['index', 'setup_cost', 'capacity', 'location'])
 Customer = namedtuple("Customer", ['index', 'demand', 'location'])
 
-def length(point1, point2):
-    return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+
+def length(p1, p2):
+    return math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
+
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -37,24 +36,25 @@ def solve_it(input_data):
         parts = lines[i].split()
         customers.append(Customer(i-1-facility_count, int(parts[0]), Point(float(parts[1]), float(parts[2]))))
 
-    # build a trivial solution
+    # trivial solution
     # pack the facilities one by one until all the customers are served
     # ==========
-    #solution = [-1]*len(customers)
-    #capacity_remaining = [f.capacity for f in facilities]
+    # solution = [-1]*len(customers)
+    # capacity_remaining = [f.capacity for f in facilities]
 
-    #facility_index = 0
-    #for customer in customers:
-    #    if capacity_remaining[facility_index] >= customer.demand:
-    #        solution[customer.index] = facility_index
-    #        capacity_remaining[facility_index] -= customer.demand
-    #    else:
-    #        facility_index += 1
-    #        assert capacity_remaining[facility_index] >= customer.demand
-    #        solution[customer.index] = facility_index
-    #        capacity_remaining[facility_index] -= customer.demand
+    # facility_index = 0
+    # for customer in customers:
+    #     if capacity_remaining[facility_index] >= customer.demand:
+    #         solution[customer.index] = facility_index
+    #         capacity_remaining[facility_index] -= customer.demand
+    #     else:
+    #         facility_index += 1
+    #         assert capacity_remaining[facility_index] >= customer.demand
+    #         solution[customer.index] = facility_index
+    #         capacity_remaining[facility_index] -= customer.demand
 
-    solution = mip(facilities, customers)
+    obj, opt, solution = mip(facilities, customers,
+                             verbose=True)
 
     # calculate the cost of the solution
     used = [0]*len(facilities)
@@ -66,71 +66,67 @@ def solve_it(input_data):
         obj += length(customer.location, facilities[solution[customer.index]].location)
 
     # prepare the solution in the specified output format
-    output_data = '%.2f' % obj + ' ' + str(0) + '\n'
+    output_data = '%.2f' % obj + ' ' + str(opt) + '\n'
     output_data += ' '.join(map(str, solution))
 
     return output_data
 
-def mip(facilities, customers):
-    M = len(customers)
-    N = len(facilities)
-    c = []
-    for j in range(N):
-        c.append(facilities[j].setup_cost)
-    for j in range(N):
-        for i in range(M):
-            c.append(length(facilities[j].location, customers[i].location))
 
-    xA = []
-    yA = []
-    valA = []
-    for i in range(M):
-        for j in range(N):
-            xA.append(i)
-            yA.append(N + M * j + i)
-            valA.append(1)
+def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None, greedy_init=False):
+    # M = len(customers)
+    # N = len(facilities)
+    f_count = len(facilities)
+    c_count = len(customers)
 
-    b = np.ones(M)
-            
-    xG = []
-    yG = []
-    valG = []
-    for i in range(N):
-        for j in range(M):
-            xG.append(M * i + j)
-            yG.append(i)
-            valG.append(-1)
-            xG.append(M * i + j)
-            yG.append(N + M * i + j)
-            valG.append(1)
+    setup_costs = [f.setup_cost for f in facilities]
+    capacities = [f.capacity for f in facilities]
+    demands = [c.demand for c in customers]
+    dists = [[length(f.location, c.location) for f in facilities] for c in customers]
 
-    for i in range(N):
-        for j in range(M):
-            xG.append(N * M + i)
-            yG.append(N + M * i + j)
-            valG.append(customers[j].demand)
-    h = np.hstack([np.zeros(N * M), 
-                   np.array([fa.capacity for fa in facilities], dtype = 'd')])
+    m = Model("facility_location")
+    m.setParam('OutputFlag', True)
+    if num_threads:
+        m.setParam("Threads", num_threads)
+    else:
+        m.setParam("Threads", cpu_count())
 
-    binVars=set()
-    for var in range(N + M * N):
-        binVars.add(var)
+    if time_limit:
+        m.setParam("TimeLimit", time_limit)
 
-    status, isol = cvxopt.glpk.ilp(c = cvxopt.matrix(c),
-                                   G = cvxopt.spmatrix(valG, xG, yG),
-                                   h = cvxopt.matrix(h),
-                                   A = cvxopt.spmatrix(valA, xA, yA),
-                                   b = cvxopt.matrix(b),
-                                   I = binVars,
-                                   B = binVars)
-    soln = []
-    for i in range(M):
-        for j in range(N):
-            if isol[N + M * j + i] == 1:
-                soln.append(j)
-    return soln
+    mapping = m.addVars(c_count, f_count, vtype=GRB.BINARY, name="mapping")
 
-import sys
+    m.setObjective(LinExpr((setup_costs[j], mapping[(i, j)])
+                           for i in range(c_count)
+                           for j in range(f_count)) +
+                   LinExpr((dists[i][j], mapping[(i, j)])
+                           for i in range(c_count)
+                           for j in range(f_count)))
+
+    m.addConstrs((mapping.sum(i, "*") == 1
+                  for i in range(c_count)),
+                 name="assign_constr")
+
+    m.addConstrs((LinExpr((demands[i], mapping[(i, j)])
+                          for i in range(c_count)) <= capacities[j]
+                  for j in range(f_count)),
+                 name="cap_constr")
+
+    m.update()
+    m.optimize()
+
+    isol = [int(var.x) for var in m.getVars()]
+    total_cost = m.getObjective()
+    soln = [j for i in range(c_count)
+            for j in range(f_count)
+            if isol[f_count * j + i] == 1]
+
+    if m.status == 2:
+        opt = 1
+    else:
+        opt = 0
+
+
+    return total_cost, opt, soln
 
 if __name__ == '__main__':
     import sys

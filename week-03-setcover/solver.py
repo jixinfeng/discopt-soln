@@ -30,6 +30,7 @@ from gurobipy import *
 
 Set = namedtuple("Set", ['index', 'cost', 'items'])
 
+
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
 
@@ -82,7 +83,6 @@ def naive(item_count, sets):
     return value, 0, soln
 
 
-
 def mip(item_count, sets, verbose=False, num_threads=None, time_limit=None):
     m = Model("set_covering")
     m.setParam('OutputFlag', verbose)
@@ -114,7 +114,6 @@ def mip(item_count, sets, verbose=False, num_threads=None, time_limit=None):
         opt = 0
 
     return total_cost, opt, soln
-
 
 
 if __name__ == '__main__':
