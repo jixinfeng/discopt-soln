@@ -115,7 +115,7 @@ def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None,
     m.optimize()
 
     isol = [int(var.x) for var in m.getVars()]
-    total_cost = m.getObjective()
+    total_cost = m.getObjective().getValue()
     soln = [j for i in range(c_count)
             for j in range(f_count)
             if isol[f_count * j + i] == 1]
@@ -125,8 +125,8 @@ def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None,
     else:
         opt = 0
 
-
     return total_cost, opt, soln
+
 
 if __name__ == '__main__':
     import sys
