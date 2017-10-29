@@ -8,7 +8,7 @@ course on Coursera
 * Knapsack: 60/60
 * Graph Coloring: 48/60
 * Set Covering: 54/60
-* Travelling Salesman:
+* Travelling Salesman: 42/60
 * Facility Location:
 * Vehicle Routing:
 
