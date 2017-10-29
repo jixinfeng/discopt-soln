@@ -72,9 +72,7 @@ def solve_it(input_data):
     return output_data
 
 
-def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None, greedy_init=False):
-    # M = len(customers)
-    # N = len(facilities)
+def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None):
     f_count = len(facilities)
     c_count = len(customers)
 
@@ -93,20 +91,26 @@ def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None,
     if time_limit:
         m.setParam("TimeLimit", time_limit)
 
-    mapping = m.addVars(c_count, f_count, vtype=GRB.BINARY, name="mapping")
+    x = m.addVars(f_count, vtype=GRB.BINARY, name="x")
+    y = m.addVars(c_count, f_count, vtype=GRB.BINARY, name="y")
 
-    m.setObjective(LinExpr((setup_costs[j], mapping[(i, j)])
-                           for i in range(c_count)
+    m.setObjective(LinExpr((setup_costs[j], x[j])
                            for j in range(f_count)) +
-                   LinExpr((dists[i][j], mapping[(i, j)])
+                   LinExpr((dists[i][j], y[(i, j)])
                            for i in range(c_count)
-                           for j in range(f_count)))
+                           for j in range(f_count)),
+                   GRB.MINIMIZE)
 
-    m.addConstrs((mapping.sum(i, "*") == 1
+    m.addConstrs((y.sum(i, "*") == 1
                   for i in range(c_count)),
                  name="assign_constr")
 
-    m.addConstrs((LinExpr((demands[i], mapping[(i, j)])
+    m.addConstrs((x[j] >= y.sum(i, j)
+                  for i in range(c_count)
+                  for j in range(f_count)),
+                 name="xy_corr_constr")
+
+    m.addConstrs((LinExpr((demands[i], y[(i, j)])
                           for i in range(c_count)) <= capacities[j]
                   for j in range(f_count)),
                  name="cap_constr")
@@ -114,11 +118,11 @@ def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None,
     m.update()
     m.optimize()
 
-    isol = [int(var.x) for var in m.getVars()]
     total_cost = m.getObjective().getValue()
-    soln = [j for i in range(c_count)
-            for j in range(f_count)
-            if isol[f_count * j + i] == 1]
+    isol = [[int(m.getVarByName("y[{},{}]".format(i, j)).x)
+             for j in range(f_count)]
+            for i in range(c_count)]
+    soln = [j for i in range(c_count) for j in range(f_count) if isol[i][j] == 1]
 
     if m.status == 2:
         opt = 1
