@@ -54,7 +54,7 @@ def solve_it(input_data):
     #         capacity_remaining[facility_index] -= customer.demand
 
     obj, opt, solution = mip(facilities, customers,
-                             verbose=True)
+                             verbose=False)
 
     # calculate the cost of the solution
     used = [0]*len(facilities)
@@ -84,7 +84,7 @@ def mip(facilities, customers, verbose=False, num_threads=None, time_limit=None,
     dists = [[length(f.location, c.location) for f in facilities] for c in customers]
 
     m = Model("facility_location")
-    m.setParam('OutputFlag', True)
+    m.setParam('OutputFlag', verbose)
     if num_threads:
         m.setParam("Threads", num_threads)
     else:
