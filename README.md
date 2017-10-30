@@ -9,7 +9,7 @@ course on Coursera
 * Graph Coloring: 48/60
 * Set Covering: 54/60
 * Travelling Salesman: 42/60
-* Facility Location:
+* Facility Location: 68/80
 * Vehicle Routing:
 
 # Install Anaconda + Gurobi
