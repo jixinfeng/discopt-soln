@@ -6,8 +6,38 @@ from collections import namedtuple
 
 Customer = namedtuple("Customer", ['index', 'demand', 'x', 'y'])
 
+
 def length(customer1, customer2):
-    return math.sqrt((customer1.x - customer2.x)**2 + (customer1.y - customer2.y)**2)
+    return math.sqrt((customer1.x - customer2.x) ** 2 + (customer1.y - customer2.y) ** 2)
+
+
+def is_valid_tour(customers, tour, vehicle_cap):
+    return sum([customers[i].demand for i in tour]) <= vehicle_cap
+
+
+def is_valid_soln(customers, tours, vehicle_cap):
+    return all([is_valid_tour(customers, tour, vehicle_cap) for tour in tours])
+
+
+def single_tour_dist(customers, tour):
+    dist = 0
+    for i in range(1, len(tour)):
+        dist += length(customers[tour[i]], customers[tour[i - 1]])
+    return dist
+
+
+def total_tour_dist(customers, tours):
+    return sum([single_tour_dist(customers, tour) for tour in tours])
+
+
+def make_output(customers, tours):
+    obj = total_tour_dist(customers, tours)
+    opt = 0
+    output_str = "{:.2f} {}\n".format(obj, opt)
+    for tour in tours:
+        output_str += (' '.join(map(str,[c for c in tour])) + '\n')
+    return output_str
+
 
 def solve_it(input_data):
     # Modify this code to run your optimization algorithm
@@ -26,54 +56,58 @@ def solve_it(input_data):
         parts = line.split()
         customers.append(Customer(i-1, int(parts[0]), float(parts[1]), float(parts[2])))
 
-    #the depot is always the first customer in the input
-    depot = customers[0] 
+    # the depot is always the first customer in the input
+    depot = customers[0]
 
-
-    # build a trivial solution
+    # trivial solution
     # assign customers to vehicles starting by the largest customer demands
-    vehicle_tours = []
-    
-    remaining_customers = set(customers)
-    remaining_customers.remove(depot)
-    
-    for v in range(0, vehicle_count):
-        # print "Start Vehicle: ",v
-        vehicle_tours.append([])
-        capacity_remaining = vehicle_capacity
-        while sum([capacity_remaining >= customer.demand for customer in remaining_customers]) > 0:
-            used = set()
-            order = sorted(remaining_customers, key=lambda customer: -customer.demand)
-            for customer in order:
-                if capacity_remaining >= customer.demand:
-                    capacity_remaining -= customer.demand
-                    vehicle_tours[v].append(customer)
-                    # print '   add', ci, capacity_remaining
-                    used.add(customer)
-            remaining_customers -= used
-
-    # checks that the number of customers served is correct
-    assert sum([len(v) for v in vehicle_tours]) == len(customers) - 1
-
-    # calculate the cost of the solution; for each vehicle the length of the route
-    obj = 0
-    for v in range(0, vehicle_count):
-        vehicle_tour = vehicle_tours[v]
-        if len(vehicle_tour) > 0:
-            obj += length(depot,vehicle_tour[0])
-            for i in range(0, len(vehicle_tour)-1):
-                obj += length(vehicle_tour[i],vehicle_tour[i+1])
-            obj += length(vehicle_tour[-1],depot)
+    vehicle_tours = greedy(customers, vehicle_count, vehicle_capacity)
 
     # prepare the solution in the specified output format
-    outputData = '%.2f' % obj + ' ' + str(0) + '\n'
-    for v in range(0, vehicle_count):
-        outputData += str(depot.index) + ' ' + ' '.join([str(customer.index) for customer in vehicle_tours[v]]) + ' ' + str(depot.index) + '\n'
-
+    outputData = make_output(customers, vehicle_tours)
     return outputData
 
 
-import sys
+def naive(customers, vehicle_ct, vehicle_cap):
+    tours = []
+    customer_ct = len(customers)
+    curr_idx = 1
+    for v in range(vehicle_ct):
+        remaining_cap = vehicle_cap
+        tours.append([])
+        tours[-1].append(0)
+        while curr_idx < customer_ct and remaining_cap > customers[curr_idx].demand:
+            tours[-1].append(curr_idx)
+            remaining_cap -= customers[curr_idx].demand
+            curr_idx += 1
+        tours[-1].append(0)
+    if curr_idx == customer_ct:
+        return tours
+    else:
+        raise ValueError("Naive solution does not exist.")
+
+
+def greedy(customers, vehicle_ct, vehicle_cap):
+    tours = []
+    customer_ct = len(customers)
+    remaining_customers = set(customers[1:])
+    for v in range(vehicle_ct):
+        remaining_cap = vehicle_cap
+        tours.append([])
+        tours[-1].append(0)
+        while remaining_customers and remaining_cap > min([c.demand for c in remaining_customers]):
+            for customer in sorted(remaining_customers, reverse=True, key=lambda c: c.demand):
+                if customer.demand <= remaining_cap:
+                    tours[-1].append(customer.index)
+                    remaining_cap -= customer.demand
+                    remaining_customers.remove(customer)
+                    continue
+        tours[-1].append(0)
+    if remaining_customers:
+        raise ValueError("Greedy solution does not exist.")
+    else:
+        return tours
+
 
 if __name__ == '__main__':
     import sys
@@ -83,6 +117,5 @@ if __name__ == '__main__':
             input_data = input_data_file.read()
         print(solve_it(input_data))
     else:
-
         print('This test requires an input file.  Please select one from the data directory. (i.e. python solver.py ./data/vrp_5_4_1)')
 
