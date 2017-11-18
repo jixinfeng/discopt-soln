@@ -7,36 +7,126 @@ from collections import namedtuple
 Customer = namedtuple("Customer", ['index', 'demand', 'x', 'y'])
 
 
-def length(customer1, customer2):
-    return math.sqrt((customer1.x - customer2.x) ** 2 + (customer1.y - customer2.y) ** 2)
+class VrpSolver(object):
+    def __init__(self, customers, vehicle_count, vehicle_capacity):
+        self.customers = customers
+        assert self.customers[0].demand == 0
+        self.c_ct = len(customers)
+        self.v_ct = vehicle_count
+        self.v_cap = vehicle_capacity
+        self.obj = 0
+        self.tours = []
 
+    def __str__(self):
+        obj = self.total_tour_dist()
+        opt = 0
+        if not self.is_valid_soln():
+            raise ValueError("Solution not valid")
+        output_str = "{:.2f} {}\n".format(obj, opt)
+        for tour in self.tours:
+            output_str += (' '.join(map(str, [c for c in tour])) + '\n')
+        return output_str
 
-def is_valid_tour(customers, tour, vehicle_cap):
-    return sum([customers[i].demand for i in tour]) <= vehicle_cap
+    @staticmethod
+    def dist(c1, c2):
+        return math.sqrt((c1.x - c2.x) ** 2 + (c1.y - c2.y) ** 2)
 
+    def single_tour_dist(self, tour):
+        tour_dist = 0
+        for i in range(1, len(tour)):
+            tour_dist += self.dist(self.customers[tour[i]], self.customers[tour[i - 1]])
+        return tour_dist
 
-def is_valid_soln(customers, tours, vehicle_cap):
-    return all([is_valid_tour(customers, tour, vehicle_cap) for tour in tours])
+    def every_tour_dists(self):
+        return {v: self.single_tour_dist(tour) for v, tour in enumerate(self.tours)}
 
+    def total_tour_dist(self):
+        return sum([self.single_tour_dist(tour) for tour in self.tours])
 
-def single_tour_dist(customers, tour):
-    dist = 0
-    for i in range(1, len(tour)):
-        dist += length(customers[tour[i]], customers[tour[i - 1]])
-    return dist
+    def single_tour_demand(self, tour):
+        return sum([self.customers[i].demand for i in tour])
 
+    def every_tour_demands(self):
+        return {v: self.single_tour_demand(tour) for v, tour in enumerate(self.tours)}
 
-def total_tour_dist(customers, tours):
-    return sum([single_tour_dist(customers, tour) for tour in tours])
+    def sinlge_remaining_cap(self, tour):
+        return self.v_cap - self.single_tour_demand(tour)
 
+    def every_remaining_caps(self):
+        return {v: self.sinlge_remaining_cap(tour) for v, tour in enumerate(self.tours)}
 
-def make_output(customers, tours):
-    obj = total_tour_dist(customers, tours)
-    opt = 0
-    output_str = "{:.2f} {}\n".format(obj, opt)
-    for tour in tours:
-        output_str += (' '.join(map(str,[c for c in tour])) + '\n')
-    return output_str
+    def is_valid_tour(self, tour):
+        return self.single_tour_demand(tour) <= self.v_cap
+
+    def is_valid_soln(self):
+        return all([self.is_valid_tour(tour) for tour in self.tours])
+
+    def greedy_init(self):
+        tours = []
+        remaining_customers = set(self.customers[1:])
+        for v in range(self.v_ct):
+            remaining_cap = self.v_cap
+            tours.append([])
+            tours[-1].append(0)
+            while remaining_customers and remaining_cap > min([c.demand for c in remaining_customers]):
+                for customer in sorted(remaining_customers, reverse=True, key=lambda c: c.demand):
+                    if customer.demand <= remaining_cap:
+                        tours[-1].append(customer.index)
+                        remaining_cap -= customer.demand
+                        remaining_customers.remove(customer)
+            tours[-1].append(0)
+        if remaining_customers:
+            raise ValueError("Greedy solution does not exist.")
+        else:
+            self.tours = tours
+            self.obj = self.total_tour_dist()
+            return self.tours
+
+    def move(self, i_from, j_from, i_to, j_to):
+        new_tour_from = self.tours[i_from][:]
+        new_tour_to = self.tours[i_to][:]
+        customer_idx = new_tour_from.pop(j_from)
+        new_tour_to.insert(j_to, customer_idx)
+        if not self.is_valid_tour(new_tour_to):
+            return False
+        new_obj = self.obj - \
+                  (self.single_tour_dist(self.tours[i_from]) + self.single_tour_dist(self.tours[i_to])) + \
+                  (self.single_tour_dist(new_tour_from) + self.single_tour_dist(new_tour_to))
+        if new_obj < self.obj:
+            self.tours[i_from] = new_tour_from
+            self.tours[i_to] = new_tour_to
+            self.obj = new_obj
+            return True
+        else:
+            return False
+
+    def swap(self, i_c1, j_c1, i_c2, j_c2):
+        pass
+
+    def flip(self, c1, c2):
+        pass
+
+    def solve(self):
+        self.greedy_init()
+        improved = True
+        while improved:
+            improved = False
+            for v_from, tour_from in enumerate(self.tours):
+                if improved:
+                    break
+                for idx_from in range(1, len(tour_from) - 1):
+                    if improved:
+                        break
+                    for v_to, tour_to in enumerate(self.tours):
+                        if improved:
+                            break
+                        if v_from == v_to:
+                            continue
+                        for idx_to in range(1, len(tour_to) - 1):
+                            improved = self.move(v_from, idx_from, v_to, idx_to)
+                            if improved:
+                                break
+        return self.tours
 
 
 def solve_it(input_data):
@@ -57,56 +147,11 @@ def solve_it(input_data):
         customers.append(Customer(i-1, int(parts[0]), float(parts[1]), float(parts[2])))
 
     # the depot is always the first customer in the input
-    depot = customers[0]
+    solver = VrpSolver(customers, vehicle_count, vehicle_capacity)
+    tours = solver.solve()
 
-    # trivial solution
-    # assign customers to vehicles starting by the largest customer demands
-    vehicle_tours = greedy(customers, vehicle_count, vehicle_capacity)
-
-    # prepare the solution in the specified output format
-    outputData = make_output(customers, vehicle_tours)
-    return outputData
-
-
-def naive(customers, vehicle_ct, vehicle_cap):
-    tours = []
-    customer_ct = len(customers)
-    curr_idx = 1
-    for v in range(vehicle_ct):
-        remaining_cap = vehicle_cap
-        tours.append([])
-        tours[-1].append(0)
-        while curr_idx < customer_ct and remaining_cap > customers[curr_idx].demand:
-            tours[-1].append(curr_idx)
-            remaining_cap -= customers[curr_idx].demand
-            curr_idx += 1
-        tours[-1].append(0)
-    if curr_idx == customer_ct:
-        return tours
-    else:
-        raise ValueError("Naive solution does not exist.")
-
-
-def greedy(customers, vehicle_ct, vehicle_cap):
-    tours = []
-    customer_ct = len(customers)
-    remaining_customers = set(customers[1:])
-    for v in range(vehicle_ct):
-        remaining_cap = vehicle_cap
-        tours.append([])
-        tours[-1].append(0)
-        while remaining_customers and remaining_cap > min([c.demand for c in remaining_customers]):
-            for customer in sorted(remaining_customers, reverse=True, key=lambda c: c.demand):
-                if customer.demand <= remaining_cap:
-                    tours[-1].append(customer.index)
-                    remaining_cap -= customer.demand
-                    remaining_customers.remove(customer)
-                    continue
-        tours[-1].append(0)
-    if remaining_customers:
-        raise ValueError("Greedy solution does not exist.")
-    else:
-        return tours
+    output_data = solver.__str__()
+    return output_data
 
 
 if __name__ == '__main__':
