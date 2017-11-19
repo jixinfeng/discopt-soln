@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import math
+import itertools
 from collections import namedtuple
 
 Customer = namedtuple("Customer", ['index', 'demand', 'x', 'y'])
@@ -101,15 +102,41 @@ class VrpSolver(object):
             return False
 
     def swap(self, i_c1, j_c1, i_c2, j_c2):
-        pass
+        new_tour_c1 = self.tours[i_c1][:]
+        new_tour_c2 = self.tours[i_c2][:]
+        idx_c1 = new_tour_c1.pop(j_c1)
+        idx_c2 = new_tour_c2.pop(j_c2)
+        new_tour_c1.insert(j_c1, idx_c2)
+        new_tour_c2.insert(j_c2, idx_c1)
+        if not (self.is_valid_tour(new_tour_c1) and self.is_valid_tour(new_tour_c2)):
+            return False
+        new_obj = self.obj - \
+                  (self.single_tour_dist(self.tours[i_c1]) + self.single_tour_dist(self.tours[i_c2])) + \
+                  (self.single_tour_dist(new_tour_c1) + self.single_tour_dist(new_tour_c2))
+        if new_obj < self.obj:
+            self.tours[i_c1] = new_tour_c1
+            self.tours[i_c2] = new_tour_c2
+            self.obj = new_obj
+            return True
+        else:
+            return False
 
-    def flip(self, c1, c2):
-        pass
+    def flip(self, i_flip, j_start, j_end):
+        old_tour = self.tours[i_flip][:]
+        new_tour = old_tour[:j_start] + old_tour[j_start: j_end + 1][::-1] + old_tour[j_end + 1:]
+        new_obj = self.obj - self.single_tour_dist(old_tour) + self.single_tour_dist(new_tour)
+        if new_obj < self.obj:
+            self.tours[i_flip] = new_tour
+            self.obj = new_obj
+            return True
+        else:
+            return False
 
     def solve(self):
         self.greedy_init()
         improved = True
         while improved:
+            #print(self.obj)
             improved = False
             for v_from, tour_from in enumerate(self.tours):
                 if improved:
@@ -123,9 +150,25 @@ class VrpSolver(object):
                         if v_from == v_to:
                             continue
                         for idx_to in range(1, len(tour_to) - 1):
-                            improved = self.move(v_from, idx_from, v_to, idx_to)
-                            if improved:
+                            if self.move(v_from, idx_from, v_to, idx_to):
+                                improved = True
                                 break
+
+            for v_c1, tour_c1 in enumerate(self.tours):
+                for idx_c1 in range(1, len(tour_c1) - 1):
+                    for v_c2, tour_c2 in enumerate(self.tours):
+                        if improved:
+                            break
+                        if v_c1 == v_c2:
+                            continue
+                        for idx_c2 in range(1, len(tour_c2) - 1):
+                            if self.swap(v_c1, idx_c1, v_c2, idx_c2):
+                                improved = True
+
+            for i_flip, tour_flip in enumerate(self.tours):
+                for start, end in itertools.combinations(range(1, len(tour_flip) - 1), 2):
+                    if self.flip(i_flip, start, end):
+                        improved = True
         return self.tours
 
 
