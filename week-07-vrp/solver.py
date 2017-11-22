@@ -268,6 +268,7 @@ class VrpSolver(object):
         improved = True
         while improved:
             improved = False
+            self.obj = self.total_tour_dist()
             if verbose:
                 print(self.obj)
 
