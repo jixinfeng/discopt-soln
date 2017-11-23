@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 from collections import namedtuple
-from VrpSolver import *
+from VrpSolver import VrpSolver
+
 
 Customer = namedtuple("Customer", ['index', 'demand', 'x', 'y'])
 

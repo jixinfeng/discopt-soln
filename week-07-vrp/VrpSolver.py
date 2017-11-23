@@ -41,7 +41,7 @@ class VrpSolver(object):
             return math.inf
         tour_dist = 0
         for i in range(1, len(tour)):
-            tour_dist += self.dist(self.customers[tour[i]], self.customers[tour[i - 1]])
+            tour_dist += self.dist(self.customers[tour[i - 1]], self.customers[tour[i]])
         return tour_dist
 
     def every_tour_dists(self):
@@ -56,15 +56,6 @@ class VrpSolver(object):
 
     def single_tour_demand(self, tour):
         return sum([self.customers[i].demand for i in tour])
-
-    def every_tour_demands(self):
-        return {v: self.single_tour_demand(tour) for v, tour in enumerate(self.tours)}
-
-    def single_remaining_cap(self, tour):
-        return self.v_cap - self.single_tour_demand(tour)
-
-    def every_remaining_caps(self):
-        return {v: self.single_remaining_cap(tour) for v, tour in enumerate(self.tours)}
 
     def greedy_init(self):
         tours = []
@@ -87,16 +78,28 @@ class VrpSolver(object):
             self.obj = self.total_tour_dist()
             return self.tours
 
-    def shift(self, i_from, start_from, end_from, i_to, j_to):
+    def shift(self, i_from, start_from, end_from, i_to, j_to, debug=False):
         tour_from_old = self.tours[i_from]
         tour_to_old = self.tours[i_to]
         improved = False
+        if debug:
+            print("".join(["-"] * 10))
+            print("old tours")
+            print(tour_from_old)
+            print(tour_to_old)
 
         seg_shift = tour_from_old[start_from: end_from + 1]
-        tour_from_new = tour_from_old[: start_from] + tour_from_old[end_from + 1:]
 
-        tour_to_new_1 = tour_to_old[: j_to] + seg_shift + tour_to_old[j_to:]
-        tour_to_new_2 = tour_to_old[: j_to] + seg_shift[::-1] + tour_to_old[j_to:]
+        tour_from_new = tour_from_old[:start_from] + tour_from_old[end_from + 1:]
+        tour_to_new_1 = tour_to_old[:j_to] + seg_shift + tour_to_old[j_to:]
+        tour_to_new_2 = tour_to_old[:j_to] + seg_shift[::-1] + tour_to_old[j_to:]
+        if debug:
+            print("seg_shift")
+            print(seg_shift)
+            print("new tours")
+            print("{}|{}".format(tour_from_old[:start_from], tour_from_old[end_from + 1:]))
+            print("{}|{}|{}".format(tour_to_old[:j_to], seg_shift, tour_to_old[j_to:]))
+            print("{}|{}|{}".format(tour_to_old[:j_to], seg_shift[::-1], tour_to_old[j_to:]))
 
         dist_from_old = self.single_tour_dist(tour_from_old)
         dist_to_old = self.single_tour_dist(tour_to_old)
@@ -200,11 +203,20 @@ class VrpSolver(object):
 
         return improved
 
-    def exchange(self, i, start, end):
+    def exchange(self, i, start, end, debug=False):
         improved = False
         tour_old = self.tours[i]
         seg = tour_old[start: end + 1]
         tour_new = tour_old[:start] + seg[::-1] + tour_old[end + 1:]
+        if debug:
+            print("".join(["-"] * 10))
+            print("old tour")
+            print(tour_old)
+            print("seg")
+            print(seg)
+            print("new tour")
+            print("{}|{}|{}".format(tour_old[:start], seg[::-1], tour_old[end + 1:]))
+
         new_obj = self.obj - self.single_tour_dist(tour_old) + self.single_tour_dist(tour_new)
         if new_obj < self.obj:
             self.tours[i] = tour_new
@@ -212,10 +224,14 @@ class VrpSolver(object):
             improved = True
         return improved
 
-    def ladder(self, i_1, i_2, j_1, j_2):
+    def ladder(self, i_1, i_2, j_1, j_2, debug=False):
         tour_1_old = self.tours[i_1]
         tour_2_old = self.tours[i_2]
         improved = False
+        print("".join(["-"] * 10))
+        print("old tours")
+        print(tour_1_old)
+        print(tour_2_old)
 
         seg_1_head = tour_1_old[:j_1]
         seg_1_tail = tour_1_old[j_1:]
@@ -229,6 +245,11 @@ class VrpSolver(object):
         # head + head(reversed) / tail(reversed) + tail
         tour_1_new_2 = seg_1_head + seg_2_head[::-1]
         tour_2_new_2 = seg_1_tail[::-1] + seg_2_tail
+        print("new tours")
+        print("{}|{}".format(seg_1_head, seg_2_tail))
+        print("{}|{}".format(seg_2_head, seg_1_tail))
+        print("{}|{}".format(seg_1_head, seg_2_head[::-1]))
+        print("{}|{}".format(seg_1_tail[::-1], seg_2_tail))
 
         # old tour lengths
         dist_1_old = self.single_tour_dist(tour_1_old)
