@@ -375,13 +375,17 @@ class VrpSolver(object):
               interchange=True,
               exchange=True,
               ladder=True,
+              threshold=0.01,
+              verbose=False,
               debug=False):
         improved = True
         while improved:
             improved = False
             self.obj = self.total_tour_dist()
-            if debug:
+            prev_obj = self.obj
+            if verbose or debug:
                 print(self.obj)
+                print(self)
 
             # try shift
             if shift:
@@ -432,4 +436,6 @@ class VrpSolver(object):
                                 if self.ladder(i_1, i_2, j_1, j_2, debug):
                                     improved = True
                                     break
+            if prev_obj - self.obj < threshold * prev_obj:
+                improved = False
         return self.tours
