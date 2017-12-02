@@ -440,6 +440,4 @@ class VrpSolver(object):
                                 if self.ladder(i_1, i_2, j_1, j_2, debug):
                                     improved = True
                                     break
-            if prev_obj - self.obj < threshold * prev_obj:
-                improved = False
         return self.tours
