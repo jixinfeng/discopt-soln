@@ -1,5 +1,6 @@
 import math
 import itertools
+from time import time
 
 
 class VrpSolver(object):
@@ -375,14 +376,17 @@ class VrpSolver(object):
               interchange=True,
               exchange=True,
               ladder=True,
-              threshold=0.01,
+              t_threshold=3600,
               verbose=False,
               debug=False):
         improved = True
+        t_start = time()
+
         while improved:
+            if time() - t_start >= t_threshold:
+                break
             improved = False
             self.obj = self.total_tour_dist()
-            prev_obj = self.obj
             if verbose or debug:
                 print(self.obj)
                 print(self)

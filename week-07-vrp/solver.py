@@ -26,7 +26,7 @@ def solve_it(input_data):
 
     # the depot is always the first customer in the input
     solver = VrpSolver(customers, vehicle_count, vehicle_capacity)
-    solver.solve()
+    solver.solve(3600 * 3)
 
     output_data = solver.__str__()
     return output_data
