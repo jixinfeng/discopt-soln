@@ -5,6 +5,7 @@ from time import time
 
 class VrpSolver(object):
     def __init__(self, customers, vehicle_count, vehicle_capacity):
+        self.CMP_THRESHOLD = 10 ** -6
         self.customers = customers
         assert self.customers[0].demand == 0
         self.c_ct = len(customers)
@@ -163,14 +164,14 @@ class VrpSolver(object):
                     (dist_from_old + dist_to_old) + \
                     (dist_from_new + dist_to_new_2)
 
-        if obj_new_1 < self.obj:
+        if obj_new_1 < self.obj - self.CMP_THRESHOLD:
             self.tours[i_from] = tour_from_new
             self.tours[i_to] = tour_to_new_1
             # self.obj = obj_new_1
             self.obj = self.total_tour_dist()
             improved = True
 
-        if obj_new_2 < self.obj:
+        if obj_new_2 < self.obj - self.CMP_THRESHOLD:
             self.tours[i_from] = tour_from_new
             self.tours[i_to] = tour_to_new_2
             # self.obj = obj_new_2
@@ -240,28 +241,28 @@ class VrpSolver(object):
         new_obj_3 = self.obj - (dist_1_old + dist_2_old) + (dist_1_new_2 + dist_2_new_1)
         new_obj_4 = self.obj - (dist_1_old + dist_2_old) + (dist_1_new_2 + dist_2_new_2)
 
-        if new_obj_1 < self.obj:
+        if new_obj_1 < self.obj - self.CMP_THRESHOLD:
             self.tours[i_1] = tour_1_new_1
             self.tours[i_2] = tour_2_new_1
             # self.obj = new_obj_1
             self.obj = self.total_tour_dist()
             improved = True
 
-        if new_obj_2 < self.obj:
+        if new_obj_2 < self.obj - self.CMP_THRESHOLD:
             self.tours[i_1] = tour_1_new_1
             self.tours[i_2] = tour_2_new_2
             # self.obj = new_obj_2
             self.obj = self.total_tour_dist()
             improved = True
 
-        if new_obj_3 < self.obj:
+        if new_obj_3 < self.obj - self.CMP_THRESHOLD:
             self.tours[i_1] = tour_1_new_2
             self.tours[i_2] = tour_2_new_1
             # self.obj = new_obj_3
             self.obj = self.total_tour_dist()
             improved = True
 
-        if new_obj_4 < self.obj:
+        if new_obj_4 < self.obj - self.CMP_THRESHOLD:
             self.tours[i_1] = tour_1_new_2
             self.tours[i_2] = tour_2_new_2
             # self.obj = new_obj_4
@@ -295,7 +296,7 @@ class VrpSolver(object):
             print("{}|{}|{}".format(tour_old[:start], seg[::-1], tour_old[end + 1:]))
 
         new_obj = self.obj - self.single_tour_dist(tour_old) + self.single_tour_dist(tour_new)
-        if new_obj < self.obj:
+        if new_obj < self.obj - self.CMP_THRESHOLD:
             self.tours[i] = tour_new
             # self.obj = new_obj
             self.obj = self.total_tour_dist()
@@ -355,14 +356,14 @@ class VrpSolver(object):
         new_obj_1 = self.obj - (dist_1_old + dist_2_old) + (dist_1_new_1 + dist_2_new_1)
         new_obj_2 = self.obj - (dist_1_old + dist_2_old) + (dist_1_new_2 + dist_2_new_2)
 
-        if new_obj_1 < self.obj:
+        if new_obj_1 < self.obj - self.CMP_THRESHOLD:
             self.tours[i_1] = tour_1_new_1
             self.tours[i_2] = tour_2_new_1
             # self.obj = new_obj_1
             self.obj = self.total_tour_dist()
             improved = True
 
-        if new_obj_2 < self.obj:
+        if new_obj_2 < self.obj - self.CMP_THRESHOLD:
             self.tours[i_1] = tour_1_new_2
             self.tours[i_2] = tour_2_new_2
             # self.obj = new_obj_2
@@ -390,6 +391,7 @@ class VrpSolver(object):
             exchange_improved = False
             ladder_improved = False
             self.obj = self.total_tour_dist()
+            prev_obj = self.obj
             if verbose or debug:
                 print(self.obj)
 
@@ -442,6 +444,8 @@ class VrpSolver(object):
                                 if self.ladder(i_1, i_2, j_1, j_2, debug):
                                     ladder_improved = True
                                     break
-
+            if verbose or debug:
+                print(shift_improved, interchange_improved, exchange_improved, ladder_improved)
+                print(prev_obj - self.obj)
             improved = shift_improved or interchange_improved or exchange_improved or ladder_improved
         return self.tours
