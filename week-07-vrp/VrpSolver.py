@@ -376,47 +376,49 @@ class VrpSolver(object):
               interchange=True,
               exchange=True,
               ladder=True,
-              t_threshold=3600,
+              t_threshold=None,
               verbose=False,
               debug=False):
         improved = True
         t_start = time()
 
         while improved:
-            if time() - t_start >= t_threshold:
+            if t_threshold and time() - t_start >= t_threshold:
                 break
-            improved = False
+            shift_improved = False
+            interchange_improved = False
+            exchange_improved = False
+            ladder_improved = False
             self.obj = self.total_tour_dist()
             if verbose or debug:
                 print(self.obj)
-                print(self)
 
             # try shift
             if shift:
                 for i_from, tour_from in enumerate(self.tours):
-                    if improved: break
+                    if shift_improved: break
                     for start_from, end_from in itertools.combinations(range(1, len(tour_from) - 1), 2):
-                        if improved: break
+                        if shift_improved: break
                         for i_to, tour_to in enumerate(self.tours):
-                            if improved: break
+                            if shift_improved: break
                             if i_from == i_to: continue
                             for j_to in range(1, len(tour_to) - 1):
                                 if self.shift(i_from, start_from, end_from, i_to, j_to, debug):
-                                    improved = True
+                                    shift_improved = True
                                     break
 
             # try interchange
             if interchange:
                 for i_1, tour_1 in enumerate(self.tours):
-                    if improved: break
+                    if interchange_improved: break
                     for start_1, end_1 in itertools.combinations(range(1, len(tour_1) - 1), 2):
-                        if improved: break
+                        if interchange_improved: break
                         for i_2, tour_2 in enumerate(self.tours):
-                            if improved: break
+                            if interchange_improved: break
                             if i_1 == i_2: continue
                             for start_2, end_2 in itertools.combinations(range(1, len(tour_2) - 1), 2):
                                 if self.interchange(i_1, start_1, end_1, i_2, start_2, end_2, debug):
-                                    improved = True
+                                    interchange_improved = True
                                     break
 
             # try exchange
@@ -424,20 +426,22 @@ class VrpSolver(object):
                 for i, tour in enumerate(self.tours):
                     for start, end in itertools.combinations(range(1, len(tour) - 1), 2):
                         if self.exchange(i, start, end, debug):
-                            improved = True
+                            exchange_improved = True
                             break
 
             # try ladder
             if ladder:
                 for i_1, tour_1 in enumerate(self.tours):
-                    if improved: break
+                    if ladder_improved: break
                     for j_1 in range(2, len(tour_1) - 2):
-                        if improved: break
+                        if ladder_improved: break
                         for i_2, tour_2 in enumerate(self.tours):
                             if i_1 == i_2: continue
-                            if improved: break
+                            if ladder_improved: break
                             for j_2 in range(2, len(tour_2) - 2):
                                 if self.ladder(i_1, i_2, j_1, j_2, debug):
-                                    improved = True
+                                    ladder_improved = True
                                     break
+
+            improved = shift_improved or interchange_improved or exchange_improved or ladder_improved
         return self.tours
