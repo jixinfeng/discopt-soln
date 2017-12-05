@@ -49,4 +49,4 @@ class TspSolver(object):
         cycle.append(0)
         self.cycle = cycle
         self.obj = self.cycle_length()
-        return
+        return self.__str__()

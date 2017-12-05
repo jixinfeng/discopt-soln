@@ -1,4 +1,4 @@
-from .TspSolver import *
+from TspSolver import *
 from itertools import combinations
 from time import time
 
@@ -18,7 +18,7 @@ class TwoOptSolver(TspSolver):
             improved = True
         return improved
 
-    def two_opt(self, t_threshold=None):
+    def solve(self, t_threshold=None):
         improved = True
         t = time()
         while improved:
@@ -27,5 +27,6 @@ class TwoOptSolver(TspSolver):
             improved = False
             for start, end in combinations(range(1, len(self.cycle) - 1), 2):
                 if self.swap(start, end):
+                    improved = True
                     break
-        return
+        return self.__str__()

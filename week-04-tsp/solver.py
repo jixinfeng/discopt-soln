@@ -3,10 +3,8 @@
 
 import math
 import itertools
-import time
-import numpy as np
-import numpy.linalg as LA
 from collections import namedtuple
+from TwoOptSolver import *
 
 Point = namedtuple("Point", ['x', 'y'])
 
@@ -33,87 +31,16 @@ def solve_it(input_data):
         parts = line.split()
         points.append(Point(float(parts[0]), float(parts[1])))
 
-    # trivial solution
-    # visit the points in the order they appear in the file
-    # obj, opt, solution = trivial(points)
-
-    # greedy solution (nearest neighbor)
-    # starts from 0, add nearest neighbor to the cycle at each step
-    # generally acceptable, but can be arbitrarily bad
-    # obj, opt, solution = greedy(points)
-
     # 2-opt solution
-    # obj, opt, solution = two_opt(points)
+    solver = TwoOptSolver(points)
 
     # k-opt solution
-    obj, opt, solution = k_opt(points, 3, time_limit=3600)
+    # obj, opt, solution = k_opt(points, 3, time_limit=3600)
 
     # prepare the solution in the specified output format
-    output_data = '%.2f' % obj + ' ' + str(opt) + '\n'
-    output_data += ' '.join(map(str, solution))
+    output_data = solver.solve()
 
     return output_data
-
-
-def trivial(points):
-    cycle = range(len(points))
-    return cycle_length(cycle, points), 0, list(cycle)
-
-
-def greedy(points):
-    point_count = len(points)
-    coords = np.array([(point.x, point.y) for point in points])
-    cycle = [0]
-    candidates = set(range(1, point_count))
-    while candidates:
-        curr_point = cycle[-1]
-        nearest_neighbor = None
-        nearest_dist = np.inf
-        for neighbor in candidates:
-            if LA.norm(coords[curr_point] - coords[neighbor]) < nearest_dist:
-                nearest_neighbor = neighbor
-                nearest_dist = LA.norm(coords[curr_point] - coords[neighbor])
-        cycle.append(nearest_neighbor)
-        candidates.remove(nearest_neighbor)
-    return cycle_length(cycle, points), 0, cycle
-
-
-def two_swap(cycle, length, start, end, points):
-    new_cycle = cycle[:start] + cycle[start:end + 1][::-1] + cycle[end + 1:]
-    new_length = length - \
-        (edge_length(points[cycle[start - 1]], points[cycle[start]]) +
-         edge_length(points[cycle[end]], points[cycle[(end + 1) % len(cycle)]])) + \
-        (edge_length(points[new_cycle[start - 1]], points[new_cycle[start]]) +
-         edge_length(points[new_cycle[end]], points[new_cycle[(end + 1) % len(cycle)]]))
-    return new_cycle, new_length
-
-
-def two_swap_iteration(cycle, points):
-    point_count = len(points)
-    length = cycle_length(cycle, points)
-    improved = False
-    for start, end in itertools.combinations(range(1, point_count), 2):
-        new_cycle, new_length = two_swap(cycle, length, start, end, points)
-        if new_length < length:
-            cycle = new_cycle
-            length = new_length
-            improved = True
-            break
-    return cycle, length, improved
-
-
-def two_opt(points, initial=None, time_limit=None):
-    if initial:
-        cycle = initial
-    else:
-        _, _, cycle = greedy(points)
-    improved = True
-    t = time.clock()
-    while improved:
-        if time_limit and time.clock() - t >= time_limit:
-            break
-        cycle, length, improved = two_swap_iteration(cycle, points)
-    return cycle_length(cycle, points), 0, cycle
 
 
 def k_swap(cycle, length, endpoints, points):
@@ -170,9 +97,6 @@ def k_opt(points, k_max=2, initial=None, time_limit=None):
                 break
             cycle, length, improved = k_swap_iteration(cycle, points, k)
     return cycle_length(cycle, points), 0, cycle
-
-
-
 
 
 if __name__ == '__main__':
