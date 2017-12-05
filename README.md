@@ -1,7 +1,9 @@
 # discopt-soln
 My solutions for 
 [discrete optimization](https://www.coursera.org/learn/discrete-optimization/)
-course on Coursera
+course on Coursera, received 
+[course certification](https://www.coursera.org/account/accomplishments/certificate/L6ANQK3YG8C9)
+on 05 Dec. 2017
 
 # Assignment Grade
 * Submit an Integer: 10/10
@@ -10,7 +12,7 @@ course on Coursera
 * Set Covering: 54/60
 * Travelling Salesman: 42/60
 * Facility Location: 68/80
-* Vehicle Routing:
+* Vehicle Routing: 45/60
 
 # Install Anaconda + Gurobi
 * Download Anaconda install package from 
