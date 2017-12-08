@@ -34,7 +34,8 @@ def solve_it(input_data):
         # ==========
         obj, opt, solution = mip(node_count, edges,
                                  verbose=False,
-                                 time_limit=3600,
+                                 num_threads=1,
+                                 time_limit=3600*4,
                                  greedy_init=True)
     else:
         # greedy solution
@@ -60,19 +61,19 @@ def mip(node_count, edges, verbose=False, num_threads=None, time_limit=None, gre
     if time_limit:
         m.setParam("TimeLimit", time_limit)
 
-    colors = m.addVars(node_count, vtype=GRB.BINARY, name="colors")
-    nodes = m.addVars(node_count, node_count, vtype=GRB.BINARY, name="assignments")
+    init_color_count, _, greedy_color = greedy(node_count, edges)
+
+    colors = m.addVars(init_color_count, vtype=GRB.BINARY, name="colors")
+    nodes = m.addVars(node_count, init_color_count, vtype=GRB.BINARY, name="assignments")
     # nodes[(node_idx, color_idx)]
 
     if greedy_init:
-        init_value, _, init_soln = greedy(node_count, edges)
-
-        for i in range(node_count):
+        for i in range(init_color_count):
             colors[i].setAttr("Start", 0)
             for j in range(node_count):
-                nodes[(i, j)].setAttr("Start", 0)
+                nodes[(j, i)].setAttr("Start", 0)
 
-        for i, j in enumerate(init_soln):
+        for i, j in enumerate(greedy_color):
             colors[j].setAttr("Start", 1)
             nodes[(i, j)].setAttr("Start", 1)
 
@@ -86,27 +87,27 @@ def mip(node_count, edges, verbose=False, num_threads=None, time_limit=None, gre
     # only color in use can be assigned ot nodes
     m.addConstrs((nodes[(i, k)] - colors[k] <= 0
                   for i in range(node_count)
-                  for k in range(node_count)),
+                  for k in range(init_color_count)),
                  name="ieq2")
 
     # vertices sharing one edge have different colors
     m.addConstrs((nodes[(edge[0], k)] + nodes[(edge[1], k)] <= 1
                   for edge in edges
-                  for k in range(node_count)),
+                  for k in range(init_color_count)),
                  name="ieq3")
 
     # color index should be as low as possible
     m.addConstrs((colors[i] - colors[i + 1] >= 0
-                  for i in range(node_count - 1)),
+                  for i in range(init_color_count - 1)),
                  name="ieq4")
 
     m.update()
     m.optimize()
 
     isol = [int(var.x) for var in m.getVars()]
-    color_count = sum(isol[:node_count])
-    soln = [j for i in range(node_count) for j in range(node_count)
-            if isol[node_count + node_count * i + j] == 1]
+    color_count = sum(isol[:init_color_count])
+    soln = [j for i in range(node_count) for j in range(init_color_count)
+            if isol[init_color_count + init_color_count * i + j] == 1]
 
     if m.status == 2:
         opt = 1
