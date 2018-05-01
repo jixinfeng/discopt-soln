@@ -23,7 +23,10 @@ on 05 Dec. 2017
   [here](http://www.gurobi.com/downloads/download-center)
 * Run ```grbgetkey YOUR_KEY_ID``` on the computer to run gurobi
 
-# Bottom Line
-Feel free to read my code and clone this repo.  Suggestions and pull requests
-will be much appreciated.  But when taking the course, please be HONEST and 
-submit your own solution.
+# 题目分析
+* [背包问题](https://ufjfeng.github.io/2017/12/06/Discrete-Optimization-Note-1-Knapsack/)
+* [图着色问题](https://ufjfeng.github.io/2018/04/30/Discrete-Optimization-Note-2-Graph-Coloring/)
+* 集合覆盖问题
+* 旅行推销员问题
+* 设施选址问题
+* 车辆路径问题
