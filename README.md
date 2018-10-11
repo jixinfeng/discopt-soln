@@ -26,7 +26,7 @@ on 05 Dec. 2017
 # 题目分析
 * [背包问题](https://ufjfeng.github.io/2017/12/06/Discrete-Optimization-Note-1-Knapsack/)
 * [图着色问题](https://ufjfeng.github.io/2018/04/30/Discrete-Optimization-Note-2-Graph-Coloring/)
-* 集合覆盖问题
-* 旅行推销员问题
+* [集合覆盖问题](https://ufjfeng.github.io/2018/09/14/Discrete-Optimization-Note-3-Set-Cover/)
+* [旅行商问题](https://ufjfeng.github.io/2018/09/19/Discrete-Optimization-Note-4-TSP/)
 * 设施选址问题
 * 车辆路径问题
